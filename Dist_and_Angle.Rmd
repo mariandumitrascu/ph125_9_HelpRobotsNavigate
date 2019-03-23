@@ -1,0 +1,449 @@
+---
+title: "Surface Detection by Robot Movements"
+author: "Marian Dumitrascu"
+date: "March 19, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Surface Detection by Robot Movements
+
+
+## Introduction
+
+gyros, accelerometer and magnetometer sensor
+
+## Data Analysis
+
+You can include R code in the document as follows:
+
+```{r data load, message=FALSE, warning=FALSE}
+# install.packages("ISLR")
+# install.packages("orientlib")
+# install.packages("RSpincalc")
+library(readr)
+library(tidyverse)
+library(ISLR)
+library(caret)
+library(orientlib)
+library(matrixStats)
+library(randomForest)
+library(RSpincalc)
+
+
+x_train <- read_csv("data/X_train.csv")
+y_train <- read_csv("data/y_train.csv")
+x_test <- read_csv("data/x_test.csv")
+```
+```{r}
+
+# nrow(x_test)/128
+
+```
+
+
+```{r data analysis}
+
+# join the labels with the training data set
+train_set <- x_train %>% left_join(y_train, by = "series_id")
+train_df <- as.data.frame(train_set)
+test_df <- as.data.frame(x_test)
+```
+
+```{r}
+
+convert_quaternions_to_euler <- function(a_dataset){
+	# use Q2EA from RSpincalc to convert quaternions to euler angles
+	Q <- a_dataset %>% select(orientation_X, orientation_Y, orientation_Z, orientation_W) %>% as.matrix()
+	euler_matrix <- Q2EA(Q, EulerOrder='xyz', tol = 10 * .Machine$double.eps, ichk = FALSE, ignoreAllChk = FALSE)
+	
+	# # same thing can be acheved by this, but I preffer using RSpincalc
+	# a <- train_df$orientation_X
+	# b <- train_df$orientation_Y
+	# c <- train_df$orientation_Z
+	# d <- train_df$orientation_W
+	# 	
+	# phi_v <- atan(2 * (a * b + c * d)/(a^2 - b^2 - c^2 + d^2))
+	# theta_v <- -asin(2 * (b * d - a * c))
+	# psi_v <- atan(2 * (a * d + b * c)/(a^2 + b^2 - c^2 - d^2))
+	
+	# add the new columns to the dataset
+	a_dataset <- a_dataset %>% mutate(phi = euler_matrix[,1], theta = euler_matrix[,2], psi = euler_matrix[,3])
+	
+	# remove quaternion columns
+	a_dataset <- a_dataset %>% select(-orientation_X, -orientation_Y,  -orientation_Z, -orientation_W)
+	
+	# return the new dataset
+	a_dataset
+}
+
+train_df <- convert_quaternions_to_euler(train_df)
+test_df <- convert_quaternions_to_euler(test_df)
+
+# train_df[is.na(train_df)]
+
+head(train_df, 200) %>% knitr::kable()
+mean(train_df$angular_velocity_X)/sd(train_df$angular_velocity_X)
+mean(train_df$angular_velocity_Y)/sd(train_df$angular_velocity_Y)
+mean(train_df$angular_velocity_Z)/sd(train_df$angular_velocity_Z)
+
+mean(train_df$linear_acceleration_X)/sd(train_df$linear_acceleration_X)
+mean(train_df$linear_acceleration_Y)/sd(train_df$linear_acceleration_Y)
+mean(train_df$linear_acceleration_Z)/sd(train_df$linear_acceleration_Z)
+
+
+
+mean(phi_v)/sd(phi_v)
+mean(theta_v)/sd(theta_v)
+mean(psi_v)/sd(psi_v)
+
+
+
+train_df %>% select(phi, theta, psi) %>% head(200)
+```
+
+
+
+
+```{r group data on training set}
+
+train_df %>% group_by(group_id, surface) %>% 
+	summarize(measuremeent = n_distinct(series_id)) %>% arrange(group_id)
+
+train_df %>% group_by(surface) %>% 
+	summarize(measuremeent = n_distinct(series_id)) %>% 
+	arrange(measuremeent)
+
+```
+
+
+
+
+## Compute total distance and total rotation
+
+```{r}
+# 3810 observations
+# 
+measurement_numbers <- train_df %>% slice(1:128) %>% pull(measurement_number)
+mn_02 <- as.character(1000 + measurement_numbers)
+# class(measurement_numbers)
+
+
+t_01 <- data.frame(measurement_numbers = NULL,  r = NULL, series_id = NULL)
+```
+
+
+
+```{r}
+
+a_dataframe <- train_df
+
+train_02 <- a_dataframe %>% 
+	# filter(group_id == 22) %>% 
+	group_by(series_id) %>% 
+	summarize(surface = first(surface)) # %>% slice(1:3010)
+
+# # train_02 <- train_02 %>% mutate(surface = ifelse(surface == "hard_tiles", "hard_tiles", "not_hard_tiles"))
+# train_02 <- train_02 %>% filter(surface != "hard_tiles")
+# # train_02 <- train_02 %>% mutate(surface = ifelse(surface == "concrete", "concrete", "the-rest"))
+# train_02 <- train_02 %>% filter(surface != "concrete")
+# # train_02 <- train_02 %>% mutate(surface = ifelse(surface == "carpet", "carpet", "the-rest"))
+# train_02 <- train_02 %>% filter(surface != "carpet")
+# # train_02 <- train_02 %>% mutate(surface = ifelse(surface == "soft_tiles", "soft_tiles", "the-rest"))
+# train_02 <- train_02 %>% filter(surface != "soft_tiles")
+# # train_02 <- train_02 %>% mutate(surface = ifelse(surface == "hard_tiles_large_space", "hard_tiles_large_space", "the-rest"))
+# train_02 <- train_02 %>% filter(surface != "hard_tiles_large_space")
+# # train_02 <- train_02 %>% mutate(surface = ifelse(surface == "fine_concrete", "fine_concrete", "the-rest"))
+# train_02 <- train_02 %>% filter(surface != "fine_concrete")
+# # train_02 <- train_02 %>% mutate(surface = ifelse(surface == "tiled", "tiled", "the-rest"))
+# train_02 <- train_02 %>% filter(surface != "tiled")
+# train_02 <- train_02 %>% mutate(surface = ifelse(surface == "wood", "wood", "soft_pvc"))
+
+train_02 <- train_02 %>% mutate(surface = as.factor(surface))
+
+
+# define an empty data frame with summary metrics for a set of 128 observations
+tmp_df <- data.frame(dist_t = NULL, 
+										 omega_t = NULL, 
+										 phi_t = NULL, 
+										 theta_t = NULL, 
+										 psi_t = NULL, 
+										 mean_sd_dist = NULL,
+										 mean_sd_omega = NULL,
+										 mean_sd_euler = NULL)
+
+for (s_id in train_02$series_id)
+{
+	# get current measurement set
+	obj_01 <- a_dataframe %>% filter(series_id == s_id)
+	
+	# select only columns we are interested in 
+	obj_02 <- obj_01 %>% 
+		select(
+		phi, theta, psi,  
+		angular_velocity_X, angular_velocity_Y, angular_velocity_Z,
+		linear_acceleration_X, linear_acceleration_Y, linear_acceleration_Z)
+
+	dist <- 0
+	omega <- 0
+	phi_t <- 0
+	theta_t <- 0
+	psi_t <- 0
+	
+	# create some 0 filled vectors for distance, movement angles and euler orientation angles
+	# we will fill them in the following loop
+	dist_v <- rep(0, 127)
+	omega_v <- rep(0, 127)
+	euler_v <- rep(0, 127)
+	
+	# loop over each measurement but skip the first one
+	for (i in 2:128)
+	{
+		x1 <- obj_02[i-1, ]
+		x2 <- obj_02[i, ]
+		
+		# calculate current distance segment from accelerometer
+		t_10 <-	sqrt(
+					(x2$linear_acceleration_Y - x1$linear_acceleration_Y)^2 +
+					(x2$linear_acceleration_Z - x1$linear_acceleration_Z)^2
+			)
+		
+		# add it to the total distance
+		dist <- dist + t_10
+		
+		# add it to the curent distance vector
+		dist_v[i - 1] <- t_10
+
+		# calculate current angle velocity change from magnetometer
+		t_11 <- sqrt(
+					(x2$angular_velocity_Y - x1$angular_velocity_Y)^2 +
+					(x2$angular_velocity_Z - x1$angular_velocity_Z)^2
+			)
+		
+		# add it to the total angle change
+		omega <- omega + t_11
+		
+		# add it to the current angle vector
+		omega_v[i - 1] <- t_11
+		
+		# calculate changes in angle for this segment from gyro sensor
+		phi_t <- phi_t + abs(x2$phi - x1$phi)
+		theta_t <- theta_t + abs(x2$theta - x1$theta)
+		psi_t <- psi_t + abs(x2$psi - x1$psi)
+		
+		euler_v[i - 1] <- abs(x2$phi - x1$phi) + abs(x2$theta - x1$theta) + abs(x2$psi - x1$psi)
+	}
+	
+	# TO DO: refactor this to index of dispersion
+	mean_sd_dist <- mean(dist_v)/sd(dist_v)
+	mean_sd_omega <- mean(omega_v)/sd(omega_v)
+	mean_sd_euler <- mean(euler_v)/sd(euler_v)
+	
+	# fill or temp data frame with summary computations for our 128 measurement set
+	tmp_df <- bind_rows(tmp_df, data_frame(
+		dist_t = dist, 
+		omega_t = omega, 
+		phi_t = phi_t, 
+		theta_t = theta_t, 
+		psi_t = psi_t, 
+		mean_sd_dist = mean_sd_dist,
+		mean_sd_omega = mean_sd_omega,
+		mean_sd_euler = mean_sd_euler))
+
+}
+
+# add the summary computations to the data set of series
+train_02 <- bind_cols(train_02, tmp_df)
+
+
+# some transformation testing
+train_02 <- train_02 %>% select(-series_id)
+
+# train_02 <- train_02 %>% mutate(angles = phi + theta + psi) %>% select(-phi, -theta, -psi)
+# train_02 <- train_02 %>% mutate(angles = omega / (phi + theta + psi)) %>% 	select(-omega, -phi, -theta, -psi)
+
+# pca <- prcomp(select(train_02, -surface))
+# summary(pca)
+# train_02 <- train_02 %>% mutate(PC1 = pca$x[,1], PC2 = pca$x[,2]) %>% select(-dist, -omega, -phi, -theta, -psi, -mean_sd_dist)
+
+
+```
+
+```{r split data}
+test_index <- createDataPartition(y = train_02$surface, times = 1, p = 0.5, list = FALSE)
+train_10 <- train_02[-test_index, ]
+test_10 <- train_02[test_index, ]
+
+```
+
+```{r, fig.width=32, fig.height=15}
+
+x <- train_10 %>% select(-surface) %>% as.matrix()
+y <- train_10$surface
+
+train_02 %>%  ggplot(aes(dist_t, mean_sd_dist, fill = surface)) +
+	geom_point(aes(color = surface))
+
+train_02 %>%  ggplot(aes(mean_sd_euler, mean_sd_omega, fill = surface)) +
+	geom_point(aes(color = surface))
+
+
+train_02 %>%  ggplot(aes(omega_t, mean_sd_omega, fill = surface)) +
+	geom_point(aes(color = surface))
+
+train_02 %>%  ggplot(aes(omega_t, mean_sd_euler, fill = surface)) +
+	geom_point(aes(color = surface))
+
+# train_02 %>% filter(surface == "soft_tiles")
+```
+
+
+## Analyse Some Hystograms
+
+```{r}
+nearZeroVar(train_df)
+```
+
+
+
+```{r}
+
+
+
+
+# t_04 %>% ggplot(aes(PC1, PC2, fill = surface)) +
+# 	geom_point(aes(color = surface)) +
+# 	geom_point(cex=3, pch=21) +
+#   coord_fixed(ratio = 1)
+```
+
+```{r}
+
+# install.packages("ISLR")
+fit <- train(surface ~ . ,  method = "knn", 
+             tuneGrid = data.frame(k = seq(2, 100, 2)), 
+             data = train_10)
+ggplot(fit) 
+
+# fit <- train(surface ~ ., method = "knn", data = test_10, k = 36)
+
+fit$bestTune
+
+# y_hat <- predict(fit$finalModel, test_10, type = "class")
+y_hat <- predict(fit, test_10, type = "raw")
+confusionMatrix(y_hat, test_10$surface)$overall["Accuracy"]
+```
+
+```{r}
+train_rpart <- train(surface ~ ., 
+                     method = "rpart",
+                     tuneGrid = data.frame(cp = seq(0, 0.075, len = 40)),
+                     data = train_10)
+ggplot(train_rpart)
+
+confusionMatrix(predict(train_rpart, test_10), test_10$surface)$overall["Accuracy"]
+```
+
+
+```{r}
+
+fit <- randomForest(surface ~ ., data = train_10) 
+y_hat <- predict(fit, test_10)
+y_test <- test_10$surface
+
+sum(y_hat == y_test)/nrow(test_10)
+
+```
+
+```{r}
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid")
+set.seed(1)
+
+
+metric <- "Accuracy"
+
+mtry <- sqrt(ncol(train_10) - 1)
+tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 500, 1000, 1500, 2000) )
+
+# tunegrid <- expand.grid(.mtry=c(1:10))
+# 
+
+customRF 						<- 	list(type = "Classification", library = "randomForest", loop = NULL)
+customRF$parameters <- 	data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
+customRF$grid 			<- 	function(x, y, len = NULL, search = "grid") {}
+customRF$fit 				<- 	function(x, y, wts, param, lev, last, weights, classProbs, ...) randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...)
+customRF$predict 		<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL) predict(modelFit, newdata)
+customRF$prob 			<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL)	predict(modelFit, newdata, type = "prob")
+customRF$sort 			<- 	function(x) x[order(x[,1]),]
+customRF$levels 		<- 	function(x) x$classes
+
+
+
+rf_gridsearch <- train(surface~., data=train_10, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
+print(rf_gridsearch)
+plot(rf_gridsearch)
+
+y_hat <- predict(rf_gridsearch, test_10)
+y_test <- test_10$surface
+
+print(sum(y_hat == y_test)/nrow(test_10))
+
+
+# # save the model
+# saveRDS(rf_gridsearch, file = "models/model_soft_pvc.rds")
+# model_soft_pvc <- readRDS("models/model_soft_pvc.rds")
+# y_hat <- predict(model_soft_pvc, test_10)
+# y_test <- test_10$surface
+# print(sum(y_hat == y_test)/nrow(test_10))
+```
+
+
+
+```{r warning=FALSE}
+fit <- train(surface ~ . , method = "lda", data = train_10)
+y_hat <- predict(fit, test_10, type = "raw")
+y_test <- test_10$surface
+
+sum(y_hat == y_test)/nrow(test_10)
+```
+
+
+
+
+```{r}
+
+fit_knn3 <- knn3(surface ~ ., data = train_10, k = 33)
+y_hat <- predict(fit_knn3, test_10, type = "class")
+y_test <- test_10$surface
+
+sum(y_hat == y_test)/nrow(test_10)
+
+```
+
+```{r}
+control <- trainControl(method = "cv", number = 10, p = .9)
+train_knn <- train(x, y, 
+                   method = "knn", 
+                   tuneGrid = data.frame(k = 10:100),
+                   trControl = control)
+train_knn
+
+```
+```{r}
+0.9866844 * 0.83 * 0.9367194 *0.9590383*0.9024323*0.8473193*0.8753463*0.819209
+```
+
+
+
+
+## Reference
+
+1. Q2EA: Convert from rotation Quaternions to Euler Angles. Q2EA converts from Quaternions (Q) to Euler Angles (EA) based on D. M. Henderson (1977). Q2EA.Xiao is the algorithm by J. Xiao (2013) for the Princeton Vision Toolkit - included here to allow reproducible research. https://rdrr.io/cran/RSpincalc/man/Q2EA.html
+
+2. Understanding Quaternions. http://www.chrobotics.com/library/understanding-quaternions
+
+3. Tune Machine Learning Algorithms in R (random forest case study) by Jason Brownlee. https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
+
+4. Classification with more than two classes, from Introduction to Information Retrieval, Christopher D. Manning, Prabhakar Raghavan and Hinrich Schütze,, Cambridge University Press 2008  https://nlp.stanford.edu/IR-book/html/htmledition/classification-with-more-than-two-classes-1.html
