@@ -10,6 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 # Surface Detection by Robot Movements
 
+For this project I choose a Kaggle.com open competition project
 
 ## Introduction
 
@@ -143,7 +144,7 @@ qplot(temp$mean_psi, bins = 50)
 
 
 
-```{r group data on training set}
+```{r group data on training set, eval=FALSE, include=FALSE}
 
 
 train_df %>% group_by(group_id, surface) %>% filter(surface == "carpet") %>% 
@@ -183,7 +184,6 @@ pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
 	processed_data_df <- a_dataframe %>% 
 	group_by(series_id) %>% 
 	summarize(
-		# surface = first(surface), we dont have surface in test set
 		mean_phi = mean(phi),
 		mean_theta = mean(theta),
 		mean_psi = mean(psi)) %>% slice(1:n_of_rows)

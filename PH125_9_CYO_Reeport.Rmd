@@ -10,12 +10,27 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 # Surface Detection by Robot Movements
 
-
 ## Introduction
 
-gyros, accelerometer and magnetometer sensor
+For this project I choosed a Kaggle.com open competion project. This is [CareerCon 2019 - Help Navigate Robots](https://www.kaggle.com/c/career-con-2019). Here is the description of the project from Kaggle:
 
-## Data Analysis
+"In this competition, you’ll help robots recognize the floor surface they’re standing on using data collected from Inertial Measurement Units (IMU sensors).
+
+We’ve collected IMU sensor data while driving a small mobile robot over different floor surfaces on the university premises. The task is to predict which one of the nine floor types (carpet, tiles, concrete) the robot is on using sensor data such as acceleration and velocity. Succeed and you'll help improve the navigation of robots without assistance across many different surfaces, so they won’t fall down on the job."
+
+The task is challenging, but I believe I can obtain a decent result using techniques and tools learned in this course.
+
+In this document I will:
+
+	1. describe data provided and output expected
+	2. perform data analysis, visualization and get insights
+	3. pre-process and transform data
+	4. decide the model to use, measure its performance and tune it
+	5. perform the final data prediction and show the results, submit to Kaggle
+	6. draw some conclusions
+
+
+## Data Description
 
 You can include R code in the document as follows:
 
