@@ -60,6 +60,8 @@ From a physicyst perrspective there are three forces involved: gravitation force
 
 # Conclusion
 
+One of the most important outcome of this prroject is that I learned a few things in addition to what was presented in the course. 
+
 # Reference
 
 1. Q2EA: Convert from rotation Quaternions to Euler Angles. Q2EA converts from Quaternions (Q) to Euler Angles (EA) based on D. M. Henderson (1977). Q2EA.Xiao is the algorithm by J. Xiao (2013) for the Princeton Vision Toolkit. https://rdrr.io/cran/RSpincalc/man/Q2EA.html
