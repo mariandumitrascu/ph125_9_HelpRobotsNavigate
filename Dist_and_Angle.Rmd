@@ -23,6 +23,7 @@ You can include R code in the document as follows:
 # install.packages("ISLR")
 # install.packages("orientlib")
 # install.packages("RSpincalc")
+# devtools::install_github("collectivemedia/tictoc")
 library(readr)
 library(tidyverse)
 library(ISLR)
@@ -31,6 +32,7 @@ library(orientlib)
 library(matrixStats)
 library(randomForest)
 library(RSpincalc)
+library(tictoc)
 
 
 x_train <- read_csv("data/X_train.csv")
@@ -187,20 +189,25 @@ pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
 	processed_data_df <- a_dataframe %>% 
 	group_by(series_id) %>% 
 	summarize(
-		# surface = first(surface), we dont have surface in test set
-		mean_phi = mean(phi),
-		mean_theta = mean(theta),
-		mean_psi = mean(psi)) %>% slice(1:n_of_rows)
-
-	# define an empty data frame with summary metrics for a set of 128 observations
-	tmp_df <- data.frame(dist_t = NULL, 
-											 omega_t = NULL, 
-											 phi_t = NULL, 
-											 theta_t = NULL, 
-											 psi_t = NULL,
-											 mean_sd_dist = NULL,
-											 mean_sd_omega = NULL)
+		phi_mean_all = mean(phi),
+		phi_sd_all = sd(phi),
+		theta_mean_all = mean(theta),
+		theta_sd_all = sd(theta),
+		psi_mean_all = mean(psi),
+		psi_sd_all = sd(psi)
+		) %>% 
+		slice(1:n_of_rows)
 	
+	# define an empty data frame with summary metrics that we'll use for each set of 128 observations
+	metrics <- c("dist_total","dist_max","dist_min","dist_max_to_min","dist_mean","dist_sd","dist_mean_to_sd",
+							 "omega_total","omega_max","omega_min","omega_max_to_min","omega_mean","omega_sd","omega_mean_to_sd",
+							 "phi_total","phi_max","phi_min","phi_mean","phi_sd","phi_mean_to_sd",
+							 "theta_total","theta_max","theta_min","theta_mean","theta_sd","theta_mean_to_sd",
+							 "psi_total","psi_max","psi_min","psi_mean","psi_sd","psi_mean_to_sd",
+							 "euler_total","euler_max","euler_min","euler_mean","euler_sd","euler_mean_to_sd")
+	tmp_df <- data.frame(matrix(ncol = length(metrics), nrow = 0) )
+	colnames(tmp_df) <- metrics
+
 	# loop over each series
 	# should use apply type of function here, but I use "for" until I master the apply
 	for (s_id in processed_data_df$series_id)
@@ -215,79 +222,94 @@ pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
 			angular_velocity_X, angular_velocity_Y, angular_velocity_Z,
 			linear_acceleration_X, linear_acceleration_Y, linear_acceleration_Z)
 
-		dist <- 0
-		omega <- 0
-		phi_t <- 0
-		theta_t <- 0
-		psi_t <- 0
-		
-		# create some 0 filled vectors for distance, movement angles and euler orientation angles
-		# we will fill them in the following loop
-		dist_v <- rep(0, 127)
-		omega_v <- rep(0, 127)
-		euler_v <- rep(0, 127)
-		
-		# loop over each measurement but skip the first one
-		for (i in 2:128)
-		{
-			x1 <- this_chunk_df[i-1, ]
-			x2 <- this_chunk_df[i, ]
-			
-			# calculate current distance segment from accelerometer
-			this_segment_dist <-	sqrt(
-						(x2$linear_acceleration_X - x1$linear_acceleration_X)^2 +
-						(x2$linear_acceleration_Y - x1$linear_acceleration_Y)^2 +
-						(x2$linear_acceleration_Z - x1$linear_acceleration_Z)^2
-				)
-			
-			# add it to the total distance
-			dist <- dist + this_segment_dist
-			
-			# add it to the curent distance vector
-			dist_v[i - 1] <- this_segment_dist
-	
-			# calculate current angle velocity change from magnetometer
-			this_segment_omega <- sqrt(
-						(x2$angular_velocity_X - x1$angular_velocity_X)^2 +
-						(x2$angular_velocity_Y - x1$angular_velocity_Y)^2 +
-						(x2$angular_velocity_Z - x1$angular_velocity_Z)^2
-				)
-			
-			# add it to the total angle change
-			omega <- omega + this_segment_omega
-			
-			# add it to the current angle vector
-			omega_v[i - 1] <- this_segment_omega
-			
-			# calculate changes in angle for this segment from gyro sensor
-			phi_t <- phi_t + abs(x2$phi - x1$phi)
-			theta_t <- theta_t + abs(x2$theta - x1$theta)
-			psi_t <- psi_t + abs(x2$psi - x1$psi)
-			
-			euler_v[i - 1] <- abs(x2$phi - x1$phi) + abs(x2$theta - x1$theta) + abs(x2$psi - x1$psi)
-		} # end of loop over lines
+		# # create some 0 filled vectors for distance, movement angles and euler orientation angles
+		# # we will fill them in the following loop
+		# dist_v <- rep(0, 127)
+		# omega_v <- rep(0, 127)
+		# phi_v <- rep(0, 127)
+		# theta_v <- rep(0, 127)
+		# psi_v <- rep(0, 127)
+		# 
+		# # loop over each measurement but skip the first one
+		# for (i in 2:128)
+		# {
+		# 	x1 <- this_chunk_df[i-1, ]
+		# 	x2 <- this_chunk_df[i, ]
+		# 	
+		# 	# calculate current distance segment from accelerometer
+		# 	this_segment_dist <-	sqrt(
+		# 				(x2$linear_acceleration_X - x1$linear_acceleration_X)^2 +
+		# 				(x2$linear_acceleration_Y - x1$linear_acceleration_Y)^2 +
+		# 				(x2$linear_acceleration_Z - x1$linear_acceleration_Z)^2
+		# 		)
+		# 
+		# 	# calculate current angle velocity change from magnetometer
+		# 	this_segment_omega <- sqrt(
+		# 				(x2$angular_velocity_X - x1$angular_velocity_X)^2 +
+		# 				(x2$angular_velocity_Y - x1$angular_velocity_Y)^2 +
+		# 				(x2$angular_velocity_Z - x1$angular_velocity_Z)^2
+		# 		)
+		# 	
+		# 	dist_v[i - 1] <- this_segment_dist
+		# 	omega_v[i - 1] <- this_segment_omega
+		# 	phi_v[i - 1] <- abs(x2$phi - x1$phi)
+		# 	theta_v[i - 1] <- abs(x2$theta - x1$theta)
+		# 	psi_v[i - 1] <- abs(x2$psi - x1$psi)
+		# 
+		# } # end of loop over lines
 
-		# compute the reciprocal coef of variation 
-		# reference https://en.wikipedia.org/wiki/Coefficient_of_variation
-		mean_sd_dist <- mean(dist_v)/sd(dist_v)
-		mean_sd_omega <- mean(omega_v)/sd(omega_v)
-		# mean_sd_euler <- mean(euler_v)/sd(euler_v)
-		
-		# compute the coefficient of variance
-		# reference: https://en.wikipedia.org/wiki/Coefficient_of_variation
-		# mean_sd_dist <- sd(dist_v)/mean(dist_v) 
-		# mean_sd_omega <- sd(omega_v)/mean(omega_v)
-		# mean_sd_euler <- sd(euler_v)/mean(euler_v)
+		dist_v <- sqrt(diff(this_chunk_df$linear_acceleration_X)^2 + diff(this_chunk_df$linear_acceleration_Y)^2 + diff(this_chunk_df$linear_acceleration_Z)^2)
+		omega_v <- sqrt(diff(this_chunk_df$angular_velocity_X)^2 + diff(this_chunk_df$angular_velocity_Y)^2 + diff(this_chunk_df$angular_velocity_Z)^2)
+		phi_v <- abs(diff(this_chunk_df$phi))
+		theta_v <- abs(diff(this_chunk_df$theta))
+		psi_v <- abs(diff(this_chunk_df$psi))
 
 		# fill or temp data frame with summary computations for our 128 measurement set
 		tmp_df <- bind_rows(tmp_df, data_frame(
-			dist_t = dist, 
-			omega_t = omega, 
-			phi_t = phi_t, 
-			theta_t = theta_t, 
-			psi_t = psi_t, 
-			mean_sd_dist = mean_sd_dist,
-			mean_sd_omega = mean_sd_omega))
+			dist_total = sum(dist_v),
+			dist_max = max(dist_v),
+			dist_min = min(dist_v),
+			dist_max_to_min = max(dist_v)/min(dist_v),
+			dist_mean = mean(dist_v),
+			dist_sd = sd(dist_v),
+			dist_mean_to_sd = mean(dist_v)/sd(dist_v),  # reciprocal coef of variation
+			
+			omega_total = sum(omega_v),
+			omega_max = max(omega_v),
+			omega_min = min(omega_v),
+			omega_max_to_min = max(omega_v)/min(omega_v),
+			omega_mean = mean(omega_v),
+			omega_sd = sd(omega_v),
+			omega_mean_to_sd = mean(omega_v)/sd(omega_v), # reciprocal coef of variation
+
+			phi_total = sum(phi_v),
+			phi_max = max(phi_v),
+			phi_min = min(phi_v),
+			phi_mean = mean(phi_v),
+			phi_sd = sd(phi_v),
+			phi_mean_to_sd = mean(phi_v)/sd(phi_v),
+			
+			theta_total = sum(theta_v),
+			theta_max = max(theta_v),
+			theta_min = min(theta_v),
+			theta_mean = mean(theta_v),
+			theta_sd = sd(theta_v),
+			theta_mean_to_sd = mean(theta_v)/sd(theta_v),
+			
+			psi_total = sum(psi_v),
+			psi_max = max(psi_v),
+			psi_min = min(psi_v),
+			psi_mean = mean(psi_v),
+			psi_sd = sd(psi_v),
+			psi_mean_to_sd = mean(psi_v)/sd(psi_v),
+			
+			euler_total = sum(phi_v + theta_v + psi_v), 
+			euler_max = max(phi_v + theta_v + psi_v),
+			euler_min = min(phi_v + theta_v + psi_v),
+			euler_mean = mean(phi_v + theta_v + psi_v),
+			euler_sd = sd(phi_v + theta_v + psi_v),
+			euler_mean_to_sd = mean(phi_v + theta_v + psi_v)/sd(phi_v + theta_v + psi_v)
+			))
 	
 	} # end of for over series
 	
@@ -309,23 +331,32 @@ pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
 
 
 ```{r preprocess both train and test data}
+
 # pre-process train and test data sets
-train_dataset <- pre_process(train_df)
-test_dataset <- pre_process(test_df)
+tic("process train data")
+x_train_processed <- pre_process(train_df, 1000)
+toc()
+
+tic("process test data")
+x_test_processed <- pre_process(test_df)
+toc()
+
+write_csv(x_train_processed, "data/x_train_processed_w_diff.csv")
 
 # rejoin train data with the labels data set
-train_dataset <- train_dataset %>% left_join(y_train, by = "series_id")
+x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")
 
 # remove series_id
-train_dataset <- train_dataset %>% select(-series_id)
+x_train_processed <- x_train_processed %>% select(-series_id)
 
 
 # split data for training
-test_index <- createDataPartition(y = train_dataset$surface, times = 1, p = 0.5, list = FALSE)
-train_train_partition <- train_dataset[-test_index, ]
-train_test_partition <- train_dataset[test_index, ]
+test_index <- createDataPartition(y = x_train_processed$surface, times = 1, p = 0.5, list = FALSE)
+train_train_partition <- x_train_processed[-test_index, ]
+train_test_partition <- x_train_processed[test_index, ]
 
-
+end_time <- Sys.time()
+end_time - start_time
 ```
 
 
@@ -337,28 +368,28 @@ train_test_partition <- train_dataset[test_index, ]
 x <- train_train_partition %>% select(-surface) %>% as.matrix()
 y <- train_train_partition$surface
 
-train_dataset %>%  ggplot(aes(dist_t, mean_sd_dist, fill = surface)) +
+x_train_processed %>%  ggplot(aes(dist_total, mean_sd_dist, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_dataset %>%  ggplot(aes(mean_phi, mean_theta, fill = surface)) +
+x_train_processed %>%  ggplot(aes(mean_phi, mean_theta, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_dataset %>%  ggplot(aes(mean_phi, mean_psi, fill = surface)) +
+x_train_processed %>%  ggplot(aes(mean_phi, mean_psi, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_dataset %>%  ggplot(aes(mean_theta, mean_psi, fill = surface)) +
+x_train_processed %>%  ggplot(aes(mean_theta, mean_psi, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_dataset %>%  ggplot(aes(omega_t, mean_sd_omega, fill = surface)) +
+x_train_processed %>%  ggplot(aes(omega_total, mean_sd_omega, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_dataset %>%  ggplot(aes(dist_t, omega_t, fill = surface)) +
+x_train_processed %>%  ggplot(aes(dist_total, omega_total, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_dataset %>%  ggplot(aes(dist_t, phi_t + theta_t + psi_t, fill = surface)) +
+x_train_processed %>%  ggplot(aes(dist_total, phi_total + theta_total + psi_total, fill = surface)) +
 	geom_point(aes(color = surface))
 
-# train_dataset %>% filter(surface == "soft_tiles")
+# x_train_processed %>% filter(surface == "soft_tiles")
 ```
 
 
@@ -421,13 +452,13 @@ conf_matrix$table %>% knitr::kable()
 
 
 
-fit_model_RF_untuned <- randomForest(surface ~ ., data = train_dataset)
+fit_model_RF_untuned <- randomForest(surface ~ ., data = x_train_processed)
 
 # predict
-y_hat <- predict(fit_model_RF_untuned, select(test_dataset, -series_id))
+y_hat <- predict(fit_model_RF_untuned, select(x_test_processed, -series_id))
 
-test_dataset_for_submission <- test_dataset %>% select(series_id) %>% mutate(surface = y_hat)
-write_csv(test_dataset_for_submission, "data/submission_RF_untuned0_02.csv")
+x_test_processed_for_submission <- x_test_processed %>% select(series_id) %>% mutate(surface = y_hat)
+write_csv(x_test_processed_for_submission, "data/submission_RF_untuned0_02.csv")
 
 ```
 
@@ -466,7 +497,7 @@ conf_matrix$overall["Accuracy"]
 conf_matrix$table
 
 # create the model using the whole train data 
-# fit_model_rf <- train(surface~., data=train_dataset, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
+# fit_model_rf <- train(surface~., data=x_train_processed, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
 
 # save the model
 # saveRDS(fit_model_rf, file = "models/fit_model_RF_one_vs_one.rds")
@@ -480,16 +511,16 @@ conf_matrix$table
 ```
 ```{r}
 # get just the series_id to be merged later with y_hat
-test_series_id <- test_dataset %>% select(series_id)
+test_series_id <- x_test_processed %>% select(series_id)
 
 # remove series_id from the data set in order to make the predictions
-test_dataset_for_predict <- test_dataset %>% select(-series_id)
+x_test_processed_for_predict <- x_test_processed %>% select(-series_id)
 
 # read the saved model
 fit_model_RF <- readRDS("models/fit_model_RF_one_vs_one.rds")
 
 # predict
-y_hat <- predict(fit_model_RF, test_dataset_for_predict)
+y_hat <- predict(fit_model_RF, x_test_processed_for_predict)
 
 # produce Kaggle data for submission
 
