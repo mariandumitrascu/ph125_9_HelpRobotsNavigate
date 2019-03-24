@@ -50,6 +50,10 @@ x_test <- read_csv("data/x_test.csv")
 train_set <- x_train %>% left_join(y_train, by = "series_id")
 train_df <- as.data.frame(train_set)
 test_df <- as.data.frame(x_test)
+
+train_df <- mutate(train_df, surface = as.factor(surface)) %>% 
+	select(-group_id)
+
 ```
 
 ```{r}
@@ -128,12 +132,12 @@ qplot(temp$psi, bins =  20)
 # 	mean_psi = mean(psi)/sd(psi)
 # 	)
 
-temp0 <- train_df %>% group_by(series_id, surface, group_id) %>% summarize( n=n(),
+temp0 <- train_df %>% group_by(series_id, surface) %>% summarize( n=n(),
 	mean_phi = mean(phi),
 	mean_theta = mean(theta),
 	mean_psi = mean(psi)
 	)
-temp <- temp0 %>% filter(surface == "carpet") %>% filter(group_id == 60)
+temp <- temp0 %>% filter(surface == "carpet") 
 qplot(temp$mean_phi, bins = 50)
 qplot(temp$mean_theta, bins = 50)
 qplot(temp$mean_psi, bins = 50)
@@ -146,8 +150,8 @@ qplot(temp$mean_psi, bins = 50)
 ```{r group data on training set}
 
 
-train_df %>% group_by(group_id, surface) %>% filter(surface == "carpet") %>% 
-	summarize(measuremeent = n_distinct(series_id)) %>% arrange(group_id)
+# train_df %>% group_by(group_id, surface) %>% filter(surface == "carpet") %>% 
+# 	summarize(measuremeent = n_distinct(series_id)) %>% arrange(group_id)
 
 train_df %>% group_by(surface) %>% 
 	summarize(measuremeent = n_distinct(series_id)) %>% 
@@ -304,29 +308,22 @@ pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
 ```
 
 
-
 ```{r preprocess both train and test data}
-
-train_02 <- pre_process(train_df)
-test_02 <- pre_process(test_df)
+# pre-process train and test data sets
+train_dataset <- pre_process(train_df)
+test_dataset <- pre_process(test_df)
 
 # rejoin train data with the labels data set
-train_02 <- train_02 %>% left_join(y_train, by = "series_id")
-nrow(train_02)
-nrow(y_train)
+train_dataset <- train_dataset %>% left_join(y_train, by = "series_id")
 
 # remove series_id
-train_02 <- train_02 %>% select(-series_id)
-train_02 <- train_02 %>% select(-group_id)
-
-# convert surface column to a factor type for train data
-train_02 <- train_02 %>% mutate(surface = as.factor(surface))
+train_dataset <- train_dataset %>% select(-series_id)
 
 
 # split data for training
-test_index <- createDataPartition(y = train_02$surface, times = 1, p = 0.5, list = FALSE)
-train_10 <- train_02[-test_index, ]
-test_10 <- train_02[test_index, ]
+test_index <- createDataPartition(y = train_dataset$surface, times = 1, p = 0.5, list = FALSE)
+train_train_partition <- train_dataset[-test_index, ]
+train_test_partition <- train_dataset[test_index, ]
 
 
 ```
@@ -337,31 +334,31 @@ test_10 <- train_02[test_index, ]
 
 ```{r, fig.width=24, fig.height=16, fig.retina=2}
 
-x <- train_10 %>% select(-surface) %>% as.matrix()
-y <- train_10$surface
+x <- train_train_partition %>% select(-surface) %>% as.matrix()
+y <- train_train_partition$surface
 
-train_02 %>%  ggplot(aes(dist_t, mean_sd_dist, fill = surface)) +
+train_dataset %>%  ggplot(aes(dist_t, mean_sd_dist, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_02 %>%  ggplot(aes(mean_phi, mean_theta, fill = surface)) +
+train_dataset %>%  ggplot(aes(mean_phi, mean_theta, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_02 %>%  ggplot(aes(mean_phi, mean_psi, fill = surface)) +
+train_dataset %>%  ggplot(aes(mean_phi, mean_psi, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_02 %>%  ggplot(aes(mean_theta, mean_psi, fill = surface)) +
+train_dataset %>%  ggplot(aes(mean_theta, mean_psi, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_02 %>%  ggplot(aes(omega_t, mean_sd_omega, fill = surface)) +
+train_dataset %>%  ggplot(aes(omega_t, mean_sd_omega, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_02 %>%  ggplot(aes(dist_t, omega_t, fill = surface)) +
+train_dataset %>%  ggplot(aes(dist_t, omega_t, fill = surface)) +
 	geom_point(aes(color = surface))
 
-train_02 %>%  ggplot(aes(dist_t, phi_t + theta_t + psi_t, fill = surface)) +
+train_dataset %>%  ggplot(aes(dist_t, phi_t + theta_t + psi_t, fill = surface)) +
 	geom_point(aes(color = surface))
 
-# train_02 %>% filter(surface == "soft_tiles")
+# train_dataset %>% filter(surface == "soft_tiles")
 ```
 
 
@@ -382,16 +379,16 @@ train_02 %>%  ggplot(aes(dist_t, phi_t + theta_t + psi_t, fill = surface)) +
 # install.packages("ISLR")
 fit <- train(surface ~ . ,  method = "knn", 
              tuneGrid = data.frame(k = seq(2, 100, 2)), 
-             data = train_10)
+             data = train_train_partition)
 ggplot(fit) 
 
-# fit <- train(surface ~ ., method = "knn", data = test_10, k = 36)
+# fit <- train(surface ~ ., method = "knn", data = train_test_partition, k = 36)
 
 fit$bestTune
 
-# y_hat <- predict(fit$finalModel, test_10, type = "class")
-y_hat <- predict(fit, test_10, type = "raw")
-conf_matrix <- confusionMatrix(y_hat, test_10$surface)
+# y_hat <- predict(fit$finalModel, train_test_partition, type = "class")
+y_hat <- predict(fit, train_test_partition, type = "raw")
+conf_matrix <- confusionMatrix(y_hat, train_test_partition$surface)
 conf_matrix$overall["Accuracy"]
 conf_matrix$table
 ```
@@ -400,31 +397,46 @@ conf_matrix$table
 train_rpart <- train(surface ~ ., 
                      method = "rpart",
                      tuneGrid = data.frame(cp = seq(0, 0.075, len = 40)),
-                     data = train_10)
+                     data = train_train_partition)
 ggplot(train_rpart)
 
-confusionMatrix(predict(train_rpart, test_10), test_10$surface)$overall["Accuracy"]
+confusionMatrix(predict(train_rpart, train_test_partition), train_test_partition$surface)$overall["Accuracy"]
 ```
 
 
 ```{r}
 
-fit <- randomForest(surface ~ ., data = train_10) 
-y_hat <- predict(fit, test_10)
-y_test <- test_10$surface
+fit_model_RF_untuned <- randomForest(surface ~ ., data = train_train_partition) 
+y_hat <- predict(fit_model_RF_untuned, train_test_partition)
+y_test <- train_test_partition$surface
 
-sum(y_hat == y_test)/nrow(test_10)
+sum(y_hat == y_test)/nrow(train_test_partition)
+
+conf_matrix <- confusionMatrix(y_hat, train_test_partition$surface)
+conf_matrix$overall["Accuracy"]
+conf_matrix$table %>% knitr::kable()
+
+
+
+
+
+
+fit_model_RF_untuned <- randomForest(surface ~ ., data = train_dataset)
+
+# predict
+y_hat <- predict(fit_model_RF_untuned, select(test_dataset, -series_id))
+
+test_dataset_for_submission <- test_dataset %>% select(series_id) %>% mutate(surface = y_hat)
+write_csv(test_dataset_for_submission, "data/submission_RF_untuned0_02.csv")
 
 ```
 
 ```{r randomTrees, fig.width=24, fig.height=16}
-control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid")
-set.seed(1)
-
+control <- trainControl(method="repeatedcv", number=10, repeats=2, search="grid")
 
 metric <- "Accuracy"
 
-# mtry <- sqrt(ncol(train_10) - 1)
+# mtry <- sqrt(ncol(train_train_partition) - 1)
 mtry <- 2:5
 tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 500, 1000, 1500, 2000, 2500) )
 
@@ -440,44 +452,44 @@ customRF$sort 			<- 	function(x) x[order(x[,1]),]
 customRF$levels 		<- 	function(x) x$classes
 
 
-fit_model_rf <- train(surface~., data=train_10, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
+fit_model_rf <- train(surface~., data=train_train_partition, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
 print(fit_model_rf)
 plot(fit_model_rf)
 
-y_hat <- predict(fit_model_rf, test_10)
-y_test <- test_10$surface
+y_hat <- predict(fit_model_rf, train_test_partition)
+y_test <- train_test_partition$surface
 
-print(sum(y_hat == y_test)/nrow(test_10))
+# print(sum(y_hat == y_test)/nrow(train_test_partition))
 
-conf_matrix <- confusionMatrix(y_hat, test_10$surface)
+conf_matrix <- confusionMatrix(y_hat, train_test_partition$surface)
 conf_matrix$overall["Accuracy"]
 conf_matrix$table
 
-# create the model for the whole train data 
-fit_model_rf <- train(surface~., data=train_02, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
+# create the model using the whole train data 
+# fit_model_rf <- train(surface~., data=train_dataset, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
 
 # save the model
-saveRDS(fit_model_rf, file = "models/fit_model_RF_one_vs_one.rds")
+# saveRDS(fit_model_rf, file = "models/fit_model_RF_one_vs_one.rds")
 
 # # save the model
 # saveRDS(fit_model_rf, file = "models/model_RF_one_vs_one.rds")
 # model_soft_pvc <- readRDS("models/model_RF_one_vs_one.rds")
-# y_hat <- predict(model_soft_pvc, test_10)
-# y_test <- test_10$surface
-# print(sum(y_hat == y_test)/nrow(test_10))
+# y_hat <- predict(model_soft_pvc, train_test_partition)
+# y_test <- train_test_partition$surface
+# print(sum(y_hat == y_test)/nrow(train_test_partition))
 ```
 ```{r}
 # get just the series_id to be merged later with y_hat
-test_series_id <- test_02 %>% select(series_id)
+test_series_id <- test_dataset %>% select(series_id)
 
 # remove series_id from the data set in order to make the predictions
-test_02 <- test_02 %>% select(-series_id)
+test_dataset_for_predict <- test_dataset %>% select(-series_id)
 
 # read the saved model
 fit_model_RF <- readRDS("models/fit_model_RF_one_vs_one.rds")
 
 # predict
-y_hat <- predict(fit_model_RF, test_02)
+y_hat <- predict(fit_model_RF, test_dataset_for_predict)
 
 # produce Kaggle data for submission
 
@@ -488,12 +500,41 @@ write_csv(submission, "data/submission_02.csv")
 
 
 
-```{r warning=FALSE}
-fit <- train(surface ~ . , method = "lda", data = train_10)
-y_hat <- predict(fit, test_10, type = "raw")
-y_test <- test_10$surface
+```{r one-vs-rest}
 
-sum(y_hat == y_test)/nrow(test_10)
+
+
+test_index <- createDataPartition(y = train_df$surface, times = 1, p = 0.5, list = FALSE)
+train_partition_ovr <- train_df[-test_index, ]
+test_partition_ovr <- train_df[test_index, ]
+
+train_partition_ovr_processed <- train_partition_ovr %>% mutate(surface = as.factor(ifelse(surface == "wood", "wood", "the_rest")))
+train_partition_ovr_processed <- pre_process(train_partition_ovr_processed)
+
+test_partition_ovr_processed <- test_partition_ovr %>% mutate(surface = as.factor(ifelse(surface == "wood", "wood", "the_rest")))
+
+fit_model_rf_wood <- train(surface~., data=train_partition_ovr_processed, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
+print(fit_model_rf_wood)
+plot(fit_model_rf_wood)
+
+y_hat <- predict(fit_model_rf_wood, train_test_partition)
+y_test <- train_test_partition$surface
+
+# print(sum(y_hat == y_test)/nrow(train_test_partition))
+
+conf_matrix <- confusionMatrix(y_hat, train_test_partition$surface)
+conf_matrix$overall["Accuracy"]
+conf_matrix$table
+
+```
+
+
+```{r warning=FALSE}
+fit <- train(surface ~ . , method = "lda", data = train_train_partition)
+y_hat <- predict(fit, train_test_partition, type = "raw")
+y_test <- train_test_partition$surface
+
+sum(y_hat == y_test)/nrow(train_test_partition)
 ```
 
 
@@ -501,11 +542,11 @@ sum(y_hat == y_test)/nrow(test_10)
 
 ```{r}
 
-fit_knn3 <- knn3(surface ~ ., data = train_10, k = 33)
-y_hat <- predict(fit_knn3, test_10, type = "class")
-y_test <- test_10$surface
+fit_knn3 <- knn3(surface ~ ., data = train_train_partition, k = 33)
+y_hat <- predict(fit_knn3, train_test_partition, type = "class")
+y_test <- train_test_partition$surface
 
-sum(y_hat == y_test)/nrow(test_10)
+sum(y_hat == y_test)/nrow(train_test_partition)
 
 ```
 
