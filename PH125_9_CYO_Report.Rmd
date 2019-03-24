@@ -52,6 +52,7 @@ From a physicyst perrspective there are three forces involved: gravitation force
 
 ## More Data Analysis
 
+
 # Fit The Model
 
 ## One-vs-One or One-vs-All
