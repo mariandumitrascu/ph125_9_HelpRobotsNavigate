@@ -330,8 +330,8 @@ x_train_processed <- x_train_processed %>% select(-group_id)
 
 # x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all,   dist_total, dist_sd,    dist_mean,  omega_total,    psi_total,    dist_mean_to_sd,   omega_mean,     psi_mean, psi_sd,  psi_mean_to_sd_all,     omega_sd, theta_mean_to_sd_all,     dist_max,     theta_sd, phi_mean_to_sd_all)
 
-# x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all, dist_total, omega_total, theta_total, psi_total)
-x_train_processed <- x_train_processed %>% select(-omega_max, -omega_sd, -omega_total, -omega_mean, -dist_mean, -dist_total, -dist_sd, -psi_sd, -theta_sd, -theta_total, -psi_total, -euler_mean_to_sd, -phi_min, -euler_sd, -psi_min, -phi_sd_all, -euler_max, -euler_total, -phi_total, -phi_mean)
+x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all, dist_total, omega_total, theta_total, psi_total)
+# x_train_processed <- x_train_processed %>% select(-omega_max, -omega_sd, -omega_total, -omega_mean, -dist_mean, -dist_total, -dist_sd, -psi_sd, -theta_sd, -theta_total, -psi_total, -euler_mean_to_sd, -phi_min, -euler_sd, -psi_min, -phi_sd_all, -euler_max, -euler_total, -phi_total, -phi_mean)
 
 ###########################
 
@@ -504,7 +504,7 @@ customRF$fit 			<- 	function(x, y, wts, param, lev, last, weights, classProbs, .
 customRF$predict 		<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL) predict(modelFit, newdata)
 customRF$prob 			<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL)	predict(modelFit, newdata, type = "prob")
 customRF$sort 			<- 	function(x) x[order(x[,1]),]
-customRF$levels 		<- 	function(x) x$classes
+customRF$levels 		<- 	function(x) x$surface
 
 
 fit_model_rf <- train(surface~., data=x_train_for_train, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control, tuneLength = 15)
@@ -548,42 +548,6 @@ conf_matrix$table
 
 
 ```{r}
-set.seed(100)
-myfolds <- createMultiFolds(x_train_for_train$surface, k = 5, times = 10)
-control <- trainControl("repeatedcv", index = myfolds, selectionFunction = "oneSE")
- 
-# Train PLS model
-mod1 <- train(surface ~ ., data = x_train_for_train,
- method = "pls",
- metric = "Accuracy",
- tuneLength = 20,
- trControl = control,
- preProc = c("zv","center","scale"))
- 
-# Check CV profile
-plot(mod1)
-```
-
-
-```{r}
-mod2 <- train(surface ~ ., data = as.matrix(x_train_for_train),
-method = "lda",
-metric = "Accuracy",
-trControl = control,
-preProc = c("zv","center","scale","pca"))
-
-plot(mod2)
-```
-
-
-
-
-
-
-
-
-
-```{r}
 # get just the series_id to be merged later with y_hat
 test_series_id <- x_test_processed %>% select(series_id)
 
@@ -605,77 +569,74 @@ write_csv(submission, "data/submission_02.csv")
 
 
 
-```{r one-vs-rest}
+```{r one-vs-all}
+# store results in this table
+results_df <- data.frame(surface = "Surface", model_name = "Model Name", ova_accuracy = "One-vs-All Accuracy")
+
+# get a small chunk for now
+x_train_processed_ova <- x_train_processed %>% slice(1:1000)
+x_train_processed_ova_initial <- x_train_processed_ova
+
+
+# partition data into train and test
+test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
+
+x_train_for_train_ova <- x_train_processed_ova[-test_index, ]
+x_train_for_test_ova <- x_train_processed_ova[test_index, ]
+
+# save train and test sets in their initial state
+x_train_for_train_ova_initial <- x_train_for_train_ova
+x_train_for_test_ova_initial <- x_train_for_test_ova
+
+## begin the loop
+current_surface <- "wood"
+surfaces <- x_train_for_train_ova %>% group_by(surface) %>% 
+	summarize(n = n()) %>% 
+	mutate(surface = as.character(surface)) %>% 
+	arrange(n)
+
+for(current_surface in surfaces$surface)
+{
+		# convert surface to two values
+		x_train_for_train_ova_current <- x_train_for_train_ova %>% 
+			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
+			mutate(surface = as.factor(surface))	
+		
+		# do the same for test
+		x_train_for_test_ova_current <- x_train_for_test_ova %>% 
+			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
+			mutate(surface = as.factor(surface))
+		
+		model_name <- paste("fit_model_rf_", current_surface, sep = "")
+		
+		mtry <- sqrt(ncol(x_train_for_train_ova_current) - 1)
+		# tunegrid <- expand.grid(.mtry=mtry,.ntree=c(500, 1000, 1500, 2000, 2500) )
+		tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 300, 400))
+		
+		fit_model_current <- train(surface ~ ., data = x_train_for_train_ova_current, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
+		assign(model_name, fit_model_current)
+		print(fit_model_current)
+		plot(fit_model_current)
+		
+		
+		y_hat <- predict(fit_model_current, x_train_for_test_ova_current)
+		y_test <-  x_train_for_test_ova_current$surface
+		
+		conf_matrix <- confusionMatrix(y_hat, x_train_for_test_ova_current$surface)
+		conf_matrix$overall["Accuracy"]
+		conf_matrix$table
+		
+		file <- paste("models/",  model_name, ".rds", sep = "")
+		write_rds(fit_model_current, file)
+		
+		results_df <- results_df %>% bind_rows(data.frame(surface = current_surface, model_name = model_name, ova_accuracy = as.character(conf_matrix$overall["Accuracy"] )))
+		results_df %>% knitr::kable()
+}
+
+results_df %>% knitr::kable()
 
 
 
-test_index <- createDataPartition(y = train_df$surface, times = 1, p = 0.5, list = FALSE)
-train_partition_ovr <- train_df[-test_index, ]
-test_partition_ovr <- train_df[test_index, ]
 
-train_partition_ovr_processed <- train_partition_ovr %>% mutate(surface = as.factor(ifelse(surface == "wood", "wood", "the_rest")))
-train_partition_ovr_processed <- pre_process(train_partition_ovr_processed)
-
-test_partition_ovr_processed <- test_partition_ovr %>% mutate(surface = as.factor(ifelse(surface == "wood", "wood", "the_rest")))
-
-fit_model_rf_wood <- train(surface~., data=train_partition_ovr_processed, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
-print(fit_model_rf_wood)
-plot(fit_model_rf_wood)
-
-y_hat <- predict(fit_model_rf_wood, x_train_for_test)
-y_test <- x_train_for_test$surface
-
-# print(sum(y_hat == y_test)/nrow(x_train_for_test))
-
-conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
-conf_matrix$overall["Accuracy"]
-conf_matrix$table
 
 ```
-
-
-```{r warning=FALSE}
-fit <- train(surface ~ . , method = "lda", data = x_train_for_train)
-y_hat <- predict(fit, x_train_for_test, type = "raw")
-y_test <- x_train_for_test$surface
-
-sum(y_hat == y_test)/nrow(x_train_for_test)
-```
-
-
-
-
-```{r}
-
-fit_knn3 <- knn3(surface ~ ., data = x_train_for_train, k = 33)
-y_hat <- predict(fit_knn3, x_train_for_test, type = "class")
-y_test <- x_train_for_test$surface
-
-sum(y_hat == y_test)/nrow(x_train_for_test)
-
-```
-
-```{r}
-control <- trainControl(method = "cv", number = 10, p = .9)
-train_knn <- train(x, y, 
-                   method = "knn", 
-                   tuneGrid = data.frame(k = 10:100),
-                   trControl = control)
-train_knn
-
-```
-
-
-
-
-## Reference
-
-1. Q2EA: Convert from rotation Quaternions to Euler Angles. Q2EA converts from Quaternions (Q) to Euler Angles (EA) based on D. M. Henderson (1977). Q2EA.Xiao is the algorithm by J. Xiao (2013) for the Princeton Vision Toolkit - included here to allow reproducible research. https://rdrr.io/cran/RSpincalc/man/Q2EA.html
-
-2. Understanding Quaternions. http://www.chrobotics.com/library/understanding-quaternions
-
-3. Understanding Euler Angles. http://www.chrobotics.com/library/understanding-euler-angles
-
-4. Tune Machine Learning Algorithms in R (random forest case study) by Jason Brownlee. https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
-
-5. Classification with more than two classes, from Introduction to Information Retrieval, Christopher D. Manning, Prabhakar Raghavan and Hinrich Schütze,, Cambridge University Press 2008  https://nlp.stanford.edu/IR-book/html/htmledition/classification-with-more-than-two-classes-1.html

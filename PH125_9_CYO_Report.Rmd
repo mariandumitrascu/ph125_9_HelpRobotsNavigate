@@ -81,3 +81,5 @@ One of the most important outcome of this prroject is that I learned a few thing
 4. Tune Machine Learning Algorithms in R (random forest case study) by Jason Brownlee. https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
 
 5. Classification with more than two classes, from Introduction to Information Retrieval, Christopher D. Manning, Prabhakar Raghavan and Hinrich Schütze,, Cambridge University Press 2008  https://nlp.stanford.edu/IR-book/html/htmledition/classification-with-more-than-two-classes-1.html
+
+http://www.starlino.com/imu_guide.html
