@@ -19,14 +19,16 @@ For this project I choosed a Kaggle.com open competion project. This is [*Career
 
 The task is challenging, but I believe I can obtain a decent result using techniques and tools learned in this course.
 
-In this document I will:
+## Report Structure
 
-	1. describe data provided and output expected
-	2. perform data analysis, visualization and get insights
+	1. First I will describe data provided and the output expected
+	2. Then, will perform data analysis, visualization and get insights
 	3. pre-process and transform data
 	4. decide the model to use, measure its performance and tune it
 	5. perform the final data prediction and show the results, submit to Kaggle
 	6. draw some conclusions
+
+## Wher is Stored
 
 I also keep this project on GitHub here: https://github.com/mariandumitrascu/ph125_9_HelpRobotsNavigate
 
@@ -37,10 +39,11 @@ I also keep this project on GitHub here: https://github.com/mariandumitrascu/ph1
 I will make the following assumptions about observations:
 
 * all observations are made using the same robot
-* the interval between obseervations is always the same. 
+* the interval between 128 observations for each seeries is always the same. 
 * the surface is a plane, no stairs, hills or valleys
 
-From a physicyst perrspective there are three forces involved: gravitation force, robot propulsion and friction force. Gravitation force is constant. Friction force depends on the surface by a coefficient and propulsion is an unknown variable. We need to basically determine the friction coeeficient based on a movement pattern. 
+From a physicyst perspective there are thre forces involved: gravitation force, robot propulsion force, and friction force. Gravitation force is constant. Friction force depends on the surface by a coefficient and propulsion is an unknown variable. We need to basically determine the friction coeficient based on a movement pattern. Moving objects will travel longer if the surface has a lower friction than on a surface with higher friction. On the other side, changing direction can be teeper on a surface with higher friction. 
+
 
 ## First Insights
 
