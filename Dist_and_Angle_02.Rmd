@@ -64,17 +64,7 @@ convert_quaternions_to_euler <- function(a_dataset){
 	# use Q2EA from RSpincalc to convert quaternions to euler angles
 	Q <- a_dataset %>% select(orientation_X, orientation_Y, orientation_Z, orientation_W) %>% as.matrix()
 	euler_matrix <- Q2EA(Q, EulerOrder='xyz', tol = 10 * .Machine$double.eps, ichk = FALSE, ignoreAllChk = FALSE)
-	
-	# # same thing can be acheved by this, but I preffer using RSpincalc
-	# a <- train_df$orientation_X
-	# b <- train_df$orientation_Y
-	# c <- train_df$orientation_Z
-	# d <- train_df$orientation_W
-	# 	
-	# phi_v <- atan(2 * (a * b + c * d)/(a^2 - b^2 - c^2 + d^2))
-	# theta_v <- -asin(2 * (b * d - a * c))
-	# psi_v <- atan(2 * (a * d + b * c)/(a^2 + b^2 - c^2 - d^2))
-	
+
 	# add the new columns to the dataset
 	a_dataset <- a_dataset %>% mutate(phi = euler_matrix[,1], theta = euler_matrix[,2], psi = euler_matrix[,3])
 	
@@ -88,93 +78,7 @@ convert_quaternions_to_euler <- function(a_dataset){
 train_df <- convert_quaternions_to_euler(train_df)
 test_df <- convert_quaternions_to_euler(test_df)
 
-# train_df[is.na(train_df)]
 
-head(train_df, 200) %>% knitr::kable()
-mean(train_df$angular_velocity_X)/sd(train_df$angular_velocity_X)
-mean(train_df$angular_velocity_Y)/sd(train_df$angular_velocity_Y)
-mean(train_df$angular_velocity_Z)/sd(train_df$angular_velocity_Z)
-
-mean(train_df$linear_acceleration_X)/sd(train_df$linear_acceleration_X)
-mean(train_df$linear_acceleration_Y)/sd(train_df$linear_acceleration_Y)
-mean(train_df$linear_acceleration_Z)/sd(train_df$linear_acceleration_Z)
-
-
-train_df %>% select(phi, theta, psi) %>% head(200)
-```
-
-```{r histograms, eval=FALSE, include=FALSE}
-
-qplot(train_df$phi, bins =  200)
-qplot(train_df$theta, bins =  200)
-qplot(train_df$psi, bins =  200)
-
-temp <- train_df %>% filter(series_id == 13)
-
-qplot(temp$phi, bins =  10)
-qplot(temp$theta, bins =  20)
-qplot(temp$psi, bins =  20)
-
-# temp0 <- train_df %>% group_by(series_id, surface) %>% summarize( n=n(),
-# 	mean_phi = sd(phi)/mean(phi),
-# 	mean_theta = sd(theta)/mean(theta),
-# 	mean_psi = sd(psi)/mean(psi)
-# 	)
-
-# temp0 <- train_df %>% group_by(series_id, surface) %>% summarize( n=n(),
-# 	mean_phi =mean(phi)/(sd(phi)),
-# 	mean_theta = mean(theta)/sd(theta),
-# 	mean_psi = mean(psi)/sd(psi)
-# 	)
-# 	
-
-# temp0 <- train_df %>% group_by(series_id, surface) %>% summarize( n=n(),
-# 	mean_phi = mean(phi)/sd(phi),
-# 	mean_theta = mean(theta)/sd(theta),
-# 	mean_psi = mean(psi)/sd(psi)
-# 	)
-
-temp0 <- train_df %>% group_by(series_id, surface) %>% summarize( n=n(),
-	mean_phi = mean(phi),
-	mean_theta = mean(theta),
-	mean_psi = mean(psi)
-	)
-temp <- temp0 %>% filter(surface == "carpet") 
-qplot(temp$mean_phi, bins = 50)
-qplot(temp$mean_theta, bins = 50)
-qplot(temp$mean_psi, bins = 50)
-#qplot(temp$mean_d, bins = 100)
-
-```
-
-
-
-```{r group data on training set}
-
-
-# train_df %>% group_by(group_id, surface) %>% filter(surface == "carpet") %>% 
-# 	summarize(measuremeent = n_distinct(series_id)) %>% arrange(group_id)
-
-train_df %>% group_by(surface) %>% 
-	summarize(measuremeent = n_distinct(series_id)) %>% 
-	arrange(measuremeent)
-
-```
-
-
-
-
-## Compute total distance and total rotation
-
-```{r}
-# 3010 observations
-# 
-measurement_numbers <- train_df %>% slice(1:128) %>% pull(measurement_number)
-mn_02 <- as.character(1000 + measurement_numbers)
-# class(measurement_numbers)
-
-
-t_01 <- data.frame(measurement_numbers = NULL,  r = NULL, series_id = NULL)
 ```
 
 
@@ -309,7 +213,7 @@ write_csv(x_test_processed, "data/x_test_processed.csv")
 ```
 
 
-```{r load data and partition, echo=TRUE, warning=FALSE}
+```{r load data and partition, echo=TRUE, message=FALSE, warning=FALSE}
 
 x_train_processed <- read_csv("data/x_train_processed.csv")
 x_test_processed <- read_csv("data/x_test_processed.csv")
@@ -326,14 +230,26 @@ x_train_processed <- x_train_processed %>% select(-series_id)
 # remove group_id
 x_train_processed <- x_train_processed %>% select(-group_id)
 
-###########################
+# ##########################
+# try diversee sets of features
 
 # x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all,   dist_total, dist_sd,    dist_mean,  omega_total,    psi_total,    dist_mean_to_sd,   omega_mean,     psi_mean, psi_sd,  psi_mean_to_sd_all,     omega_sd, theta_mean_to_sd_all,     dist_max,     theta_sd, phi_mean_to_sd_all)
 
-x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all, dist_total, omega_total, theta_total, psi_total)
+# x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all, dist_total, omega_total, theta_total, psi_total)
+
 # x_train_processed <- x_train_processed %>% select(-omega_max, -omega_sd, -omega_total, -omega_mean, -dist_mean, -dist_total, -dist_sd, -psi_sd, -theta_sd, -theta_total, -psi_total, -euler_mean_to_sd, -phi_min, -euler_sd, -psi_min, -phi_sd_all, -euler_max, -euler_total, -phi_total, -phi_mean)
 
-###########################
+# based on my intuition
+x_train_processed <- x_train_processed %>% select(surface,
+																									dist_mean_to_sd,
+																									omega_mean_to_sd,
+																									euler_mean_to_sd,
+																									
+																									phi_mean_all, 
+																									theta_mean_all, 
+																									psi_mean_all)
+
+# ##########################
 
 
 
@@ -353,7 +269,7 @@ x_train_for_test <- x_train_processed[test_index, ]
 ```
 
 
-
+# Data Visualization
 
 
 ```{r, fig.width=16, fig.height=9, fig.retina=4}
@@ -396,11 +312,20 @@ x_train_processed %>%  ggplot(aes(dist_total, omega_total, fill = surface)) +
 x_train_processed %>%  ggplot(aes(dist_total, phi_total + theta_total + psi_total, fill = surface)) +
 	geom_point(aes(color = surface))
 
+
+
+
 x_train_processed %>%  ggplot(aes(euler_mean_to_sd, dist_mean_to_sd, fill = surface)) +
 	geom_point(aes(color = surface))
 
 x_train_processed %>%  ggplot(aes(euler_mean_to_sd, omega_mean_to_sd, fill = surface)) +
 	geom_point(aes(color = surface))
+
+x_train_processed %>%  ggplot(aes(dist_mean_to_sd, omega_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface))
+
+
+
 
 
 x_train_processed %>%  ggplot(aes(dist_total, theta_total, fill = surface)) +
@@ -408,24 +333,48 @@ x_train_processed %>%  ggplot(aes(dist_total, theta_total, fill = surface)) +
 
 x_train_processed %>%  ggplot(aes(dist_total, psi_total, fill = surface)) +
 	geom_point(aes(color = surface))
+
+x_train_processed %>%  ggplot(aes(dist_total, omega_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+x_train_processed %>%  ggplot(aes(dist_total, euler_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+x_train_processed %>%  ggplot(aes(sqrt(dist_total^2 + omega_total^2), omega_total/dist_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+x_train_processed %>%  ggplot(aes(sqrt(dist_total^2 + euler_total^2), euler_total/dist_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+tmp <- x_train_processed %>% group_by(surface) %>% 
+	summarize( omega_sd_of_mean_to_sd = sd(omega_mean_to_sd),
+						 dist_sd_of_mean_to_sd = sd(dist_mean_to_sd)
+					)
+
 # x_train_processed %>% filter(surface == "soft_tiles")
 ```
+
+```{r, fig.width=16, fig.height=9, fig.retina=4}
+x_test_processed %>%  ggplot(aes(dist_total, theta_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+x_test_processed %>%  ggplot(aes(dist_total, psi_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+x_test_processed %>%  ggplot(aes(dist_total, euler_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+x_test_processed %>%  ggplot(aes(sqrt(dist_total^2 + omega_total^2), omega_total/dist_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+```
+
+
+
 
 ```{r}
 x_train_processed %>%  ggplot(aes(PC2, PC3, fill = surface)) +
 	geom_point(aes(color = surface))
-```
-
-
-```{r}
-
-
-
-
-# t_04 %>% ggplot(aes(PC1, PC2, fill = surface)) +
-# 	geom_point(aes(color = surface)) +
-# 	geom_point(cex=3, pch=21) +
-#   coord_fixed(ratio = 1)
 ```
 
 ```{r}
