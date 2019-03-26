@@ -679,7 +679,7 @@ for(current_surface in surfaces$surface)
 		# 	mutate(surface = as.factor(surface))	
 		
 		# do training of full train data
-		x_train_for_train_ova_current <- x_train_processed %>% 
+		x_train_for_train_ova_current <- x_train_processed_ova %>% 
 			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
 			mutate(surface = as.factor(surface))
 		
@@ -871,6 +871,6 @@ for (i in 1:nrow(results_voting)) {
 results_voting <- results_voting %>% mutate(surface = as.factor(surface))
 
 submission <- results_voting %>% select(series_id, surface)
-write_csv(submission, "data/submission_04.csv")
+write_csv(submission, "data/submission_05.csv")
 ```
 
