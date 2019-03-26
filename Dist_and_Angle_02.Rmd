@@ -24,6 +24,7 @@ You can include R code in the document as follows:
 # install.packages("orientlib")
 # install.packages("RSpincalc")
 # devtools::install_github("collectivemedia/tictoc")
+# install.packages("kableExtra")
 library(readr)
 library(tidyverse)
 library(ISLR)
@@ -225,7 +226,7 @@ x_test_processed <- read_csv("data/x_test_processed.csv")
 x_train_processed <- x_train_processed %>% mutate(surface = as.factor(surface))
 
 # use a smaller set of datab to save time
-x_train_processed <- x_train_processed %>% slice(1:1000)
+x_train_processed <- x_train_processed # %>% slice(1:1000)
 
 # remove series_id
 # x_train_processed <- x_train_processed %>% select(-series_id)
@@ -238,9 +239,18 @@ x_train_processed <- x_train_processed %>% select(-group_id)
 
 # x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all,   dist_total, dist_sd,    dist_mean,  omega_total,    psi_total,    dist_mean_to_sd,   omega_mean,     psi_mean, psi_sd,  psi_mean_to_sd_all,     omega_sd, theta_mean_to_sd_all,     dist_max,     theta_sd, phi_mean_to_sd_all)
 
-# x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all, dist_total, omega_total, theta_total, psi_total)
+# used forr last models
+x_train_processed <- x_train_processed %>% select(series_id, surface, 
+																									phi_mean_all, theta_mean_all, psi_mean_all, dist_total, omega_total, theta_total, psi_total, phi_sd, theta_sd, psi_sd, 
+																									dist_mean_to_sd, omega_mean_to_sd)
 
- x_train_processed <- x_train_processed %>% select(-omega_max, -omega_sd, -omega_total, -omega_mean, -dist_mean, -dist_total, -dist_sd, -psi_sd, -theta_sd, -theta_total, -psi_total, -euler_mean_to_sd, -phi_min, -euler_sd, -psi_min, -phi_sd_all, -euler_max, -euler_total, -phi_total, -phi_mean)
+x_test_processed <- x_test_processed  %>% select(series_id, 
+																								phi_mean_all, theta_mean_all, psi_mean_all, dist_total, omega_total, theta_total, psi_total, phi_sd, theta_sd, psi_sd, 
+																								dist_mean_to_sd, omega_mean_to_sd)
+
+
+
+ # x_train_processed <- x_train_processed %>% select(-omega_max, -omega_sd, -omega_total, -omega_mean, -dist_mean, -dist_total, -dist_sd, -psi_sd, -theta_sd, -theta_total, -psi_total, -euler_mean_to_sd, -phi_min, -euler_sd, -psi_min, -phi_sd_all, -euler_max, -euler_total, -phi_total, -phi_mean)
 
 # based on my intuition
 # x_train_processed <- x_train_processed %>% select(surface,
@@ -272,6 +282,15 @@ x_train_for_test <- x_train_processed[test_index, ]
 ```
 
 
+```{r}
+# x_train_processed %>% filter(dist_total < 1)
+# min(x_train_processed$dist_total)
+
+# x_train_processed[which.min(x_train_processed$dist_total), ]
+```
+
+
+
 # Training Data Visualization
 
 
@@ -282,72 +301,127 @@ y <- x_train_for_train$surface
 
 findCorrelation(cor(x), names = TRUE)
 
+#####
+# totals vs meean_to_sd
+
 x_train_processed %>%  ggplot(aes(dist_total, dist_mean_to_sd, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(omega_total, omega_mean_to_sd, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(euler_total, euler_mean_to_sd, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+```
 
+
+```{r, fig.width=16, fig.height=9, fig.retina=4}
+
+#####
+# euler gyro angles
 x_train_processed %>%  ggplot(aes(phi_mean_all, psi_mean_all, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) + 
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(theta_mean_all, psi_mean_all, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(theta_mean_all, phi_mean_all, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(phi_mean_to_sd_all, psi_mean_to_sd_all, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(phi_mean_to_sd_all, theta_mean_to_sd_all, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(theta_mean_to_sd_all, psi_mean_to_sd_all, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(dist_total, omega_total, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(dist_total, phi_total + theta_total + psi_total, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+```
 
 
+```{r, fig.width=16, fig.height=9, fig.retina=4}
 
+#####
+# dist_mean_to_sd vs omega_mean_to_sd vs euler_mean_to_sd
 
 x_train_processed %>%  ggplot(aes(euler_mean_to_sd, dist_mean_to_sd, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(euler_mean_to_sd, omega_mean_to_sd, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(dist_mean_to_sd, omega_mean_to_sd, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+```
 
 
+```{r, fig.width=16, fig.height=9, fig.retina=4}
 
 
-
+#####
+# dist_total vs omega_total vs euler_total, radius of dist to omega vs dist to omega angle
 x_train_processed %>%  ggplot(aes(dist_total, theta_total, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(dist_total, psi_total, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(dist_total, omega_total, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(dist_total, euler_total, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(sqrt(dist_total^2 + omega_total^2), omega_total/dist_total, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(sqrt(dist_total^2 + euler_total^2), euler_total/dist_total, fill = surface)) +
-	geom_point(aes(color = surface))
+	geom_point(aes(color = surface))+
+	geom_point(cex=6, pch=21)
+
+```
+
+
+```{r, fig.width=16, fig.height=9, fig.retina=4}
+#####
+# dist to sd of phi, theta psi
+x_train_processed %>%  ggplot(aes(dist_total, phi_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_total, theta_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_total, psi_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 
 tmp <- x_train_processed %>% group_by(surface) %>% 
 	summarize( omega_sd_of_mean_to_sd = sd(omega_mean_to_sd),
@@ -375,10 +449,9 @@ x_test_processed %>%  ggplot(aes(sqrt(dist_total^2 + omega_total^2), omega_total
 ```
 
 
-```{r}
-x_train_processed %>%  ggplot(aes(PC2, PC3, fill = surface)) +
-	geom_point(aes(color = surface))
-```
+
+## KNN
+
 
 ```{r}
 
@@ -400,6 +473,8 @@ conf_matrix$overall["Accuracy"]
 conf_matrix$table
 ```
 
+## RPart
+
 ```{r}
 train_rpart <- train(surface ~ ., 
                      method = "rpart",
@@ -410,6 +485,7 @@ ggplot(train_rpart)
 confusionMatrix(predict(train_rpart, x_train_for_test), x_train_for_test$surface)$overall["Accuracy"]
 ```
 
+## Random Forest Untuned
 
 ```{r}
 
@@ -434,6 +510,22 @@ conf_matrix$table %>% knitr::kable()
 # write_csv(x_test_processed_for_submission, "data/submission_RF_untuned0_02.csv")
 
 ```
+## Random Forest Caret Package
+
+```{r}
+
+model_fit_rf <- train(Class ~ ., data = training,
+method = "rf",
+metric = "ROC",
+tuneGrid = data.frame(mtry = 3),
+trControl = trainControl(method = "cv",
+                        classProbs = TRUE,
+                        summaryFunction = twoClassSummary))
+
+```
+
+
+## Random Forests Customized one-vs-one
 
 ```{r randomTrees, fig.height=9, fig.width = 16}
 control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid")
@@ -529,25 +621,29 @@ x_train_processed_ova <- x_train_processed %>% slice(1:1000)
 x_train_processed_ova_initial <- x_train_processed_ova
 
 
-# # partition data into train and test
-# test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
-# 
-# x_train_for_train_ova <- x_train_processed_ova[-test_index, ]
-# x_train_for_test_ova <- x_train_processed_ova[test_index, ]
-# 
-# # save train and test sets in their initial state
-# x_train_for_train_ova_initial <- x_train_for_train_ova
-# x_train_for_test_ova_initial <- x_train_for_test_ova
+# partition data into train and test
+test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
+
+x_train_for_train_ova <- x_train_processed_ova[-test_index, ]
+x_train_for_test_ova <- x_train_processed_ova[test_index, ]
+
+# save train and test sets in their initial state
+x_train_for_train_ova_initial <- x_train_for_train_ova
+x_train_for_test_ova_initial <- x_train_for_test_ova
+
+# partition data into:train, test, and balancing pool
+# we will use the pool to extract records to balance the dataset
+# folds <- createFolds(x, k = 3, list = TRUE)
 
 # get surfaces in a data frame, so we can loop over
 surfaces <- x_train_for_train_ova %>% group_by(surface) %>% 
 	summarize(n = n()) %>% 
 	mutate(surface = as.character(surface)) %>% 
+	filter(surface == "hard_tiles") %>% 
 	arrange(n)
 
 # create a data frame that will store the results from each model
-results <- data.frame(series_id = x_train_for_train_ova$series_id, true_surface = x_train_for_train_ova$surface)
-results_prob <- data.frame(series_id = x_train_for_train_ova$series_id, true_surface = x_train_for_train_ova$surface)
+results <- data.frame(series_id = x_train_for_test_ova$series_id, true_surface = x_train_for_test_ova$surface)
 
 for(current_surface in surfaces$surface)
 {
@@ -564,23 +660,37 @@ for(current_surface in surfaces$surface)
 		model_name <- paste("fit_model_rf_", current_surface, sep = "")
 		
 		mtry <- sqrt(ncol(x_train_for_train_ova_current) - 1)
+		# mtry <- 2:5
+		# mtry <- c(3.2, 3.4, 3.6, 3.8)
 		# tunegrid <- expand.grid(.mtry=mtry,.ntree=c(500, 1000, 1500, 2000, 2500) )
 		tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 300, 400, 500, 1000))
+		# metric <- "ROC"
+		control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid", classProbs = TRUE, summaryFunction = twoClassSummary)
 		
-		fit_model_current <- train(surface ~ ., data = x_train_for_train_ova_current, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
-		assign(model_name, fit_model_current)
+		fit_model_current <- train(surface ~ ., data = x_train_for_train_ova_current, method=customRF, metric="ROC", tuneGrid=tunegrid, trControl=control)
+		
+		# fit_model_current <- train(surface ~ ., data = x_train_for_train_ova_current,
+		# 		method = "rf",
+		# 		metric = "ROC",
+		# 		tuneGrid = data.frame(mtry = mtry),
+		# 		trControl = trainControl(method = "cv",
+		# 		                        classProbs = TRUE,
+		# 		                        summaryFunction = twoClassSummary))
+		# 
+		# assign(model_name, fit_model_current)
 		print(fit_model_current)
-		plot(fit_model_current)
+		# plot(fit_model_current)
 		
 		
-		y_hat <- predict(fit_model_current, x_train_for_test_ova_current)
+		y_hat <- predict(fit_model_current, x_train_for_test_ova_current, type = "raw")
 		y_hat_prob <- predict(fit_model_current, x_train_for_test_ova_current, type = "prob")
 		
 		y_test <-  x_train_for_test_ova_current$surface
 		
 		conf_matrix <- confusionMatrix(y_hat, x_train_for_test_ova_current$surface)
-		conf_matrix$overall["Accuracy"]
-		conf_matrix$table
+		
+		print(conf_matrix$overall["Accuracy"])
+		print(conf_matrix$table)
 		
 		file <- paste("models/",  model_name, ".rds", sep = "")
 		write_rds(fit_model_current, file)
@@ -588,18 +698,35 @@ for(current_surface in surfaces$surface)
 		results_df <- results_df %>% bind_rows(data.frame(surface = current_surface, model_name = model_name, ova_accuracy = as.character(conf_matrix$overall["Accuracy"] )))
 		results_df %>% knitr::kable()
 		
+		# add columns to results
+		results <- results %>% mutate(last_result = y_test)
+		names(results)[ncol(results)] <- paste(current_surface, "_y_test", sep="")
+		
 		results <- results %>% mutate(last_result = y_hat)
-		names(results)[ncol(results)] <- current_surface
+		names(results)[ncol(results)] <- paste(current_surface, "_y_hat", sep="")
+
+		results <- results %>% mutate(last_result = y_hat_prob[, 1])
+		names(results)[ncol(results)] <- paste(current_surface, "_y_hat_prob", sep="")
+		
 }
 
 results_df %>% knitr::kable()
+results %>% knitr::kable()
 
+results %>% filter(true_surface == "hard_tiles")
+results %>% filter(hard_tiles_y_hat_prob >= 0.30)
 
 ```
 
 
 ## Load Models and Perform thee Prediction
 ```{r}
+
+# get surfaces in a data frame, so we can loop over
+surfaces <- x_train_for_train_ova %>% group_by(surface) %>% 
+	summarize(n = n()) %>% 
+	mutate(surface = as.character(surface)) %>% 
+	arrange(n)
 
 # store results in this table
 results_df <- data.frame(surface = "Surface", model_name = "Model Name", ova_accuracy = "One-vs-All Accuracy")
@@ -611,7 +738,9 @@ results <- results %>% mutate(rowNum = row_number())
 results_prob <- data.frame(series_id = x_train_for_test_ova$series_id, true_surface = x_train_for_test_ova$surface)
 results_prob <- results_prob %>% mutate(rowNum = row_number())
 
-surfaces <- surfaces %>% filter(surface == "hard_tiles")
+# filter for a surface of interest
+# surfaces <- surfaces %>% filter(surface == "hard_tiles")
+surfaces <- surfaces %>% filter(surface == "concrete")
 
 for(current_surface in surfaces$surface){
 	
@@ -627,7 +756,7 @@ for(current_surface in surfaces$surface){
 	# get y_hat and y_hat_prob
 	y_hat <- predict(fit_model_current, x_train_for_test_ova_current, type = "raw")
 	y_hat_prob <- predict(fit_model_current, x_train_for_test_ova_current, type = "prob")
-	y_hat_new <- as.factor(ifelse(y_hat_prob[,1] > 0.25, current_surface, "the_rest"))
+	y_hat_new <- as.factor(ifelse(y_hat_prob[,1] >= 0.3, current_surface, "the_rest"))
 	
 	# get the y_test
 	y_test <-  x_train_for_test_ova_current$surface
@@ -647,11 +776,11 @@ for(current_surface in surfaces$surface){
 	
 	# compute confusion matrix and print it
 	conf_matrix <- confusionMatrix(y_hat, x_train_for_test_ova_current$surface)
-	conf_matrix$overall["Accuracy"]
+	print(conf_matrix$overall["Accuracy"])
 	print(conf_matrix$table)
 	
 	conf_matrix_new <- confusionMatrix(y_hat_new, x_train_for_test_ova_current$surface)
-	conf_matrix_new$overall["Accuracy"]
+	print(conf_matrix_new$overall["Accuracy"])
 	print(conf_matrix_new$table)
 	
 	# store accuracy
