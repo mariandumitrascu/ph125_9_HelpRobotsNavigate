@@ -610,16 +610,13 @@ write_csv(submission, "data/submission_02.csv")
 ```
 
 
-## One vs All
+## Create Models for One vs All Scenario
 
 Here we will perform a binary classification for each of the class.
 We will keep current surface and rename the rest of the surfaces to "the_rest".
 Qw will save each modeel on a file on hard-disk
 
 ```{r one-vs-all}
-# store results in this table
-results_df <- data.frame(surface = "Surface", model_name = "Model Name", ova_accuracy = "One-vs-All Accuracy")
-
 # get a small chunk for now
 x_train_processed_ova <- x_train_processed # %>% slice(1:1000)
 x_train_processed_ova_initial <- x_train_processed_ova
@@ -646,22 +643,17 @@ surfaces <- x_train_for_train_ova %>% group_by(surface) %>%
 	# filter(surface == "hard_tiles") %>% 
 	arrange(n)
 
-# create a data frame that will store the results from each model
-results <- data.frame(series_id = x_train_for_test_ova$series_id, true_surface = x_train_for_test_ova$surface)
-
 for(current_surface in surfaces$surface)
 {
 		# convert surface to two values
-		x_train_for_train_ova_current <- x_train_for_train_ova %>% 
-			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
-			mutate(surface = as.factor(surface))	
+		# x_train_for_train_ova_current <- x_train_for_train_ova %>% 
+		# 	mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
+		# 	mutate(surface = as.factor(surface))	
 		
-		# do the same for test
-		x_train_for_test_ova_current <- x_train_for_test_ova %>% 
+		# do training of full train data
+		x_train_for_train_ova_current <- x_train_processed %>% 
 			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
 			mutate(surface = as.factor(surface))
-		
-		model_name <- paste("model_fit_rf_", current_surface, sep = "")
 		
 		mtry <- sqrt(ncol(x_train_for_train_ova_current) - 1)
 		# mtry <- 2:5
@@ -689,41 +681,16 @@ for(current_surface in surfaces$surface)
 		y_hat <- predict(model_fit_current, x_train_for_test_ova_current, type = "raw")
 		y_hat_prob <- predict(model_fit_current, x_train_for_test_ova_current, type = "prob")
 		
-		y_test <-  x_train_for_test_ova_current$surface
-		
-		conf_matrix <- confusionMatrix(y_hat, x_train_for_test_ova_current$surface)
-		
-		print(conf_matrix$overall["Accuracy"])
-		print(conf_matrix$table)
-		
+		model_name <- paste("model_02_fit_rf_", current_surface, sep = "")
 		file <- paste("models/",  model_name, ".rds", sep = "")
 		write_rds(model_fit_current, file)
-		
-		results_df <- results_df %>% bind_rows(data.frame(surface = current_surface, model_name = model_name, ova_accuracy = as.character(conf_matrix$overall["Accuracy"] )))
-		results_df %>% knitr::kable()
-		
-		# add columns to results
-		results <- results %>% mutate(last_result = y_test)
-		names(results)[ncol(results)] <- paste(current_surface, "_y_test", sep="")
-		
-		results <- results %>% mutate(last_result = y_hat)
-		names(results)[ncol(results)] <- paste(current_surface, "_y_hat", sep="")
-
-		results <- results %>% mutate(last_result = y_hat_prob[, 1])
-		names(results)[ncol(results)] <- paste(current_surface, "_y_hat_prob", sep="")
-		
 }
 
-results_df %>% knitr::kable()
-results %>% knitr::kable()
-
-results %>% filter(true_surface == "hard_tiles")
-results %>% filter(hard_tiles_y_hat_prob >= 0.30)
 
 ```
 
 
-## Load Models and Perform thee Prediction
+## Load Models and Evaluate Overall Accuracy
 
 Loop over each surface, load the model from hard-disk and perform the prediction.
 
@@ -768,13 +735,12 @@ for(current_surface in surfaces$surface){
 			mutate(surface = as.factor(surface))
 	
 	# get the modeel from a file
-	model_name <- paste("model_fit_rf_", current_surface, sep = "")
+	model_name <- paste("model_02_fit_rf_", current_surface, sep = "")
 	model_fit_current <- readRDS(paste("models/", model_name, ".rds", sep = ""))
 	
 	# get y_hat and y_hat_prob
 	y_hat <- predict(model_fit_current, x_train_for_test_ova_current, type = "raw")
 	y_hat_prob <- predict(model_fit_current, x_train_for_test_ova_current, type = "prob")
-	y_hat_new <- as.factor(ifelse(y_hat_prob[,current_surface] >= 0.35, current_surface, "the_rest"))
 	
 	# get the y_test
 	y_test <-  x_train_for_test_ova_current$surface
@@ -787,29 +753,16 @@ for(current_surface in surfaces$surface){
 	results <- results %>% mutate(last_result_prob = y_hat_prob[,current_surface])
 	names(results)[ncol(results)] <- paste(current_surface, "_prob", sep = "")
 	
-	# results <- results %>% mutate(last_result_prob = y_hat_prob[,"the_rest"])
-	# names(results)[ncol(results)] <- paste(current_surface, "_the_rest_prob", sep = "")
-	
-	# results <- results %>% mutate(last_result_new = y_hat_new)
-	# names(results)[ncol(results)] <- paste(current_surface, "_new", sep = "")
-	# 
-	
 	# store the probability of curent model for current surface in a column named by current surface
 	results_voting <- results_voting %>% mutate(last_result_prob = y_hat_prob[,current_surface])
 	names(results_voting)[ncol(results_voting)] <- current_surface # the column name is current surface
-	
 	
 	# compute confusion matrix and print it
 	conf_matrix <- confusionMatrix(y_hat, x_train_for_test_ova_current$surface)
 	print(conf_matrix$overall["Accuracy"])
 	print(conf_matrix$table)
-	
-	# this is thee confusion matrix with a cutoff probability of 35% instead on 50% to account for prevalence
-	conf_matrix_new <- confusionMatrix(y_hat_new, x_train_for_test_ova_current$surface)
-	print(conf_matrix_new$overall["Accuracy"])
-	print(conf_matrix_new$table)
-	
-	# store accuracy
+
+		# store accuracy
 	results_df <- results_df %>% bind_rows(data.frame(surface = current_surface, model_name = model_name, ova_accuracy = as.character(conf_matrix$overall["Accuracy"] )))
 	
 }
@@ -829,16 +782,8 @@ results %>% filter(series_id == 66)
 
 # y_hat_hard_tiles <- y_hat
 # sum(y_hat[,1] >= 0.2)
-```
 
-
-
-## Create Final Prediction Based on Voting
-
-```{r}
-results_voting
-results_voting[4,]
-
+## Create Final Prediction Based on Voting and Ds
 results_voting <- results_voting %>%  mutate(pred_surface = rep("", nrow(results_voting)))
 
 for (i in 1:nrow(results_voting)) {
@@ -847,10 +792,9 @@ for (i in 1:nrow(results_voting)) {
 
 results_voting <- results_voting %>% mutate(pred_surface = as.factor(pred_surface))
 
+# Overall Accuracy
 sum(results_voting[, "true_surface"] == results_voting[, "pred_surface"])/nrow(results_voting)
 ```
-
-
 
 
 ## Evaluate Test Dataset and Submit
@@ -873,7 +817,7 @@ results_voting <- data.frame(
 for(current_surface in surfaces$surface){
 	
 	# get the model from a file
-	model_name <- paste("model_fit_rf_", current_surface, sep = "")
+	model_name <- paste("model_02_fit_rf_", current_surface, sep = "")
 	model_fit_current <- readRDS(paste("models/", model_name, ".rds", sep = ""))
 	
 	# get y_hat and y_hat_prob
@@ -896,6 +840,6 @@ for (i in 1:nrow(results_voting)) {
 results_voting <- results_voting %>% mutate(surface = as.factor(surface))
 
 submission <- results_voting %>% select(series_id, surface)
-write_csv(submission, "data/submission_03.csv")
+write_csv(submission, "data/submission_04.csv")
 ```
 
