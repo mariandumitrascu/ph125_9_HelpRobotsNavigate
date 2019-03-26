@@ -274,18 +274,24 @@ x_train_processed %>%  ggplot(aes(euler_total, euler_mean_to_sd, fill = surface)
 
 #####
 # euler gyro angles
+# #####################################################
 x_train_processed %>%  ggplot(aes(phi_mean_all, psi_mean_all, fill = surface)) +
 	geom_point(aes(color = surface)) + 
 	geom_point(cex=6, pch=21)
 
+# circular dependency
 x_train_processed %>%  ggplot(aes(theta_mean_all, psi_mean_all, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(sqrt(omega_mean_to_sd^2 + dist_mean_to_sd^2), atan(theta_mean_all/psi_mean_all), fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
 
 x_train_processed %>%  ggplot(aes(theta_mean_all, phi_mean_all, fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
-
+# #####################################################
 x_train_processed %>%  ggplot(aes(phi_mean_to_sd_all, psi_mean_to_sd_all, fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
@@ -649,20 +655,25 @@ We will keep current surface and rename the rest of the surfaces to "the_rest".
 Qw will save each modeel on a file on hard-disk
 
 ```{r one-vs-all}
+tic("process all models")
+
 # get a small chunk for now
-x_train_processed_ova <- x_train_processed  %>% slice(1:1000)
+x_train_processed_ova <- x_train_processed  # %>% slice(1:1000)
 
 # a prefix to save models on hdd
-model_prefix <- "model_03_fit_"
+model_prefix <- "model_04_fit_"
 
-# partition data into train and test
-test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
-x_train_for_train_ova <- x_train_processed_ova[-test_index, ]
-x_train_for_test_ova <- x_train_processed_ova[test_index, ]
+# # partition data into train and test
+# test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
+# x_train_for_train_ova <- x_train_processed_ova[-test_index, ]
+# x_train_for_test_ova <- x_train_processed_ova[test_index, ]
 
 # partition data into:train, test, and balancing pool
 # we will use the pool to extract records to balance the dataset
-# folds <- createFolds(x, k = 3, list = TRUE)
+folds <- createFolds(x_train_processed_ova$surface, k = 3, list = TRUE)
+x_train_for_train_ova <- x_train_processed_ova[folds$Fold1,]
+x_train_for_test_ova <- x_train_processed_ova[folds$Fold2,]
+x_train_pool <- x_train_processed_ova[folds$Fold3,]
 
 # get surfaces in a data frame, so we can loop over
 surfaces <- x_train_for_train_ova %>% group_by(surface) %>% 
@@ -682,6 +693,10 @@ for(current_surface in surfaces$surface)
 		x_train_for_train_ova_current <- x_train_processed_ova %>% 
 			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
 			mutate(surface = as.factor(surface))
+		
+		# add data from pool to balance
+		x_chunk <- x_train_pool %>% filter(surface == current_surface)
+		x_train_for_train_ova_current <- bind_rows(x_train_for_train_ova_current, x_chunk)
 		
 		#################
 		# custom randomForest
@@ -713,7 +728,7 @@ for(current_surface in surfaces$surface)
 		#################
 
 		
-		print(model_fit_current)
+		# print(model_fit_current)
 		# plot(model_fit_current)
 		
 		model_name <- paste(model_prefix, current_surface, sep = "")
@@ -721,13 +736,15 @@ for(current_surface in surfaces$surface)
 		write_rds(model_fit_current, file)
 }
 
+toc()
+
 
 ```
 
 
 ## Load Models and Perform the Prediction
 
-Loop over each surface, load the model from hard-disk and perform the prediction.
+Loop over each surface, load the model from hard-disk and perform the prediction on the test set.
 
 
 ```{r}
@@ -871,6 +888,6 @@ for (i in 1:nrow(results_voting)) {
 results_voting <- results_voting %>% mutate(surface = as.factor(surface))
 
 submission <- results_voting %>% select(series_id, surface)
-write_csv(submission, "data/submission_05.csv")
+write_csv(submission, "data/submission_06.csv")
 ```
 
