@@ -683,7 +683,7 @@ for(current_surface in surfaces$surface)
 			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
 			mutate(surface = as.factor(surface))
 		
-		#################
+		###################################################################################################
 		# custom randomForest
 		# 
 		mtry <- sqrt(ncol(x_train_for_train_ova_current) - 1)
@@ -699,9 +699,9 @@ for(current_surface in surfaces$surface)
 		customRF$levels 		<- 	function(x) x$surface
 				
 		model_fit_current <- train(surface ~ ., data = x_train_for_train_ova_current, method=customRF, metric="ROC", tuneGrid=tunegrid, trControl=control)
-		#################
+		###################################################################################################
 		
-		#################
+		###################################################################################################
 		# model_fit_current <- train(surface ~ ., data = x_train_for_train_ova_current,
 		# 		method = "rf",
 		# 		metric = "ROC",
@@ -710,7 +710,7 @@ for(current_surface in surfaces$surface)
 		# 		                        classProbs = TRUE,
 		# 		                        summaryFunction = twoClassSummary))
 		# 
-		#################
+		###################################################################################################
 
 		
 		print(model_fit_current)
