@@ -663,7 +663,7 @@ for(current_surface in surfaces$surface)
 		# mtry <- 2:5
 		# mtry <- c(3.2, 3.4, 3.6, 3.8)
 		# tunegrid <- expand.grid(.mtry=mtry,.ntree=c(500, 1000, 1500, 2000, 2500) )
-		tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 300, 400, 500, 1000))
+		tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 300, 400, 500, 1000, 1500, 2000))
 		# metric <- "ROC"
 		control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid", classProbs = TRUE, summaryFunction = twoClassSummary)
 		
