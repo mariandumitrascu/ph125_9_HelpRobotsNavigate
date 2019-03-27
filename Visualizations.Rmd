@@ -1,0 +1,206 @@
+---
+title: "Visualizations"
+author: "Marian Dumitrascu"
+date: "March 26, 2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+
+
+
+## Visualization of Training Data
+
+
+```{r, fig.width=16, fig.height=9, fig.retina=4}
+
+x <- x_train_for_train %>% select(-surface) %>% as.matrix()
+y <- x_train_for_train$surface
+
+findCorrelation(cor(x), names = TRUE)
+
+#####
+# totals vs mean_to_sd
+
+x_train_processed %>%  ggplot(aes(dist_total, dist_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(omega_total, omega_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(euler_total, euler_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+# euler_total is not relevant
+```
+
+
+```{r, fig.width=13, fig.height=10, fig.retina=4}
+
+# #####################################################################################################
+# euler gyro angles
+x_train_processed %>%  ggplot(aes(phi_mean_all, psi_mean_all, fill = surface)) +
+	geom_point(aes(color = surface)) + 
+	geom_point(cex=6, pch=21)
+
+# this is a circle
+x_train_processed %>%  ggplot(aes(theta_mean_all, psi_mean_all, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+# this is a wave
+x_train_processed %>%  ggplot(aes(theta_mean_all, phi_mean_all, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(atan(dist_mean_to_sd/omega_mean_to_sd), atan(theta_mean_all/psi_mean_all), fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=5, pch=21)
+
+x_pool_sub %>%  ggplot(aes(atan(dist_mean_to_sd/omega_mean_to_sd), atan(theta_mean_all/psi_mean_all), fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=5, pch=21)
+
+# #####################################################################################################
+```
+
+
+
+```{r, fig.width=13, fig.height=10, fig.retina=4}
+
+x_train_processed %>%  ggplot(aes(phi_mean_to_sd_all, psi_mean_to_sd_all, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(phi_mean_to_sd_all, theta_mean_to_sd_all, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(theta_mean_to_sd_all, psi_mean_to_sd_all, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(psi_mean_to_sd, phi_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(theta_mean_to_sd, phi_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(theta_mean_to_sd, psi_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+
+
+x_train_processed %>%  ggplot(aes(dist_total, omega_total, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_total, phi_total + theta_total + psi_total, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+```
+
+
+```{r, fig.width=16, fig.height=9, fig.retina=4}
+
+#####
+# dist_mean_to_sd vs omega_mean_to_sd vs euler_mean_to_sd
+
+x_train_processed %>%  ggplot(aes(euler_mean_to_sd, dist_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(euler_mean_to_sd, omega_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_mean_to_sd, omega_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+```
+
+
+```{r, fig.width=16, fig.height=9, fig.retina=4}
+
+
+#####
+# dist_total vs omega_total vs euler_total, radius of dist to omega vs dist to omega angle
+x_train_processed %>%  ggplot(aes(dist_total, theta_total, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_total, psi_total, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_total, omega_total, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_total, euler_total, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(sqrt(dist_total^2 + omega_total^2), omega_total/dist_total, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(sqrt(dist_total^2 + euler_total^2), euler_total/dist_total, fill = surface)) +
+	geom_point(aes(color = surface))+
+	geom_point(cex=6, pch=21)
+
+```
+
+
+```{r, fig.width=16, fig.height=9, fig.retina=4}
+#####
+# dist to sd of phi, theta psi
+x_train_processed %>%  ggplot(aes(dist_total, phi_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_total, theta_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_total, psi_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+tmp <- x_train_processed %>% group_by(surface) %>% 
+	summarize( omega_sd_of_mean_to_sd = sd(omega_mean_to_sd),
+						 dist_sd_of_mean_to_sd = sd(dist_mean_to_sd)
+					)
+
+# x_train_processed %>% filter(surface == "soft_tiles")
+```
+
+## Visualization of Test Data
+
+```{r, fig.width=16, fig.height=9, fig.retina=4}
+x_test_processed %>%  ggplot(aes(dist_total, theta_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+x_test_processed %>%  ggplot(aes(dist_total, psi_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+x_test_processed %>%  ggplot(aes(dist_total, euler_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+x_test_processed %>%  ggplot(aes(sqrt(dist_total^2 + omega_total^2), omega_total/dist_total, fill = surface)) +
+	geom_point(aes(color = surface))
+
+```
+
