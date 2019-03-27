@@ -272,7 +272,7 @@ x_train_processed <- x_train_processed_from_file %>% select(-group_id)
 # ########################################################################################################
 
 
-# used for models 9
+# used for models 9, 10, 11
 # ########################################################################################################
 x_train_processed <- x_train_processed %>% mutate(
 																									f1 = log(dist_mean_to_sd*omega_mean_to_sd),
@@ -286,9 +286,9 @@ x_train_processed <- x_train_processed %>% select(series_id, surface,
 																									phi_mean_to_sd_all, 
 																									theta_mean_to_sd_all, 
 																									psi_mean_to_sd_all,
-																									# phi_mean_to_sd, 
-																									# theta_mean_to_sd, 
-																									# psi_mean_to_sd,
+																									phi_mean_to_sd, 
+																									theta_mean_to_sd, 
+																									psi_mean_to_sd,
 																								  theta_total, 
 																									psi_total, 
 																									phi_total,
@@ -296,6 +296,9 @@ x_train_processed <- x_train_processed %>% select(series_id, surface,
 																									phi_mean_all, 
 																									theta_mean_all, 
 																									psi_mean_all,
+																									phi_mean,
+																									theta_mean,
+																									psi_mean,
 																								 	dist_mean_to_sd, 
 																									dist_mean,
 																									dist_sd,
@@ -305,16 +308,17 @@ x_train_processed <- x_train_processed %>% select(series_id, surface,
 																									omega_mean,
 																									omega_sd,
 																									omega_total,
-																									omega_max)
+																									omega_max
+																									)
 
 x_test_processed <- x_test_processed  %>% select(series_id,
 																									f1, f2, 
 																									phi_mean_to_sd_all, 
 																								 	theta_mean_to_sd_all, 
 																								 	psi_mean_to_sd_all,
-																									# phi_mean_to_sd, 
-																								  # theta_mean_to_sd, 
-																								 	# psi_mean_to_sd,
+																									phi_mean_to_sd, 
+																								  theta_mean_to_sd, 
+																								 	psi_mean_to_sd,
 																									theta_total, 
 																								 	psi_total, 
 																								 	phi_total,
@@ -324,6 +328,9 @@ x_test_processed <- x_test_processed  %>% select(series_id,
 																								 	phi_mean_all,
 																								 	theta_mean_all, 
 																								 	psi_mean_all,
+																								 	phi_mean,
+																								 	theta_mean,
+																								 	psi_mean,
 																								 	dist_mean_to_sd,
 																								 	dist_mean,
 																								 	dist_sd,
@@ -333,17 +340,26 @@ x_test_processed <- x_test_processed  %>% select(series_id,
 																								 	omega_mean,
 																								 	omega_sd,
 																								 	omega_total,
-																								 	omega_max)
+																								 	omega_max
+																								 	)
 
 # ########################################################################################################
 
+s8 <- read_csv("data/submission_08.csv")
 s6 <- read_csv("data/submission_06.csv")
 s5 <- read_csv("data/submission_05.csv")
 s4 <- read_csv("data/submission_04.csv")
 s3 <- read_csv("data/submission_03.csv")
 s2 <- read_csv("data/submission_RF_untuned0_02.csv")
+s10 <- read_csv("data/model_10_fit_submission.csv")
+s11 <- read_csv("data/model_11_fit_submission.csv")
 
-x_pool_sub <- s6 %>% 
+
+x_pool_sub <- s6 %>%
+	inner_join(s11, by = c("series_id", "surface")) %>% 
+	inner_join(s10, by = c("series_id", "surface")) %>% 
+	inner_join(s8, by = c("series_id", "surface")) %>% 
+	inner_join(s6, by = c("series_id", "surface")) %>% 
 	inner_join(s5, by = c("series_id", "surface")) %>% 
 	inner_join(s4, by = c("series_id", "surface")) %>% 
 	inner_join(s3, by = c("series_id", "surface")) %>% 
@@ -355,7 +371,7 @@ x_pool_sub <- x_test_processed %>% inner_join(x_pool_sub, by = "series_id") %>%
 
 x_pool_sub <- x_pool_sub %>% mutate(surface = as.factor(surface))
 
-x_train_processed <- bind_rows(x_train_processed, x_pool_sub)
+# x_train_processed <- bind_rows(x_train_processed, x_pool_sub)
 
 
 
@@ -413,12 +429,12 @@ confusionMatrix(predict(train_rpart, x_train_for_test), x_train_for_test$surface
 
 ## Random Forest Untuned
 
-```{r}
+```{r, fig.height=9, fig.width = 16}
 
 model_fit_RF_untuned <- randomForest(
 	surface ~ ., 
 	metric = "ROC", 
-	data = select(x_train_for_train, -series_id)
+	data = slice(select(x_train_for_train, -series_id), 1:5000)
 	)
 
 y_hat <- predict(model_fit_RF_untuned, select(x_train_for_test, -series_id))
@@ -430,6 +446,9 @@ conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
 conf_matrix$table %>% knitr::kable()
 
+importance <- importance(model_fit_rf$finalModel)
+importance[order(importance[,1], decreasing = TRUE), ]
+varImpPlot(model_fit_rf$finalModel)
 
 # model_fit_RF_untuned <- randomForest(surface ~ ., data = x_train_processed)
 # 
