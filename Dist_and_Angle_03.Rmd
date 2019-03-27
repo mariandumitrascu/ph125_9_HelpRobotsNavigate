@@ -240,28 +240,54 @@ x_train_processed <- x_train_processed %>% select(-group_id)
 
 # x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all,   dist_total, dist_sd,    dist_mean,  omega_total,    psi_total,    dist_mean_to_sd,   omega_mean,     psi_mean, psi_sd,  psi_mean_to_sd_all,     omega_sd, theta_mean_to_sd_all,     dist_max,     theta_sd, phi_mean_to_sd_all)
 
-# used for last models
+# used for models 8
+# ########################################################################################################
+# x_train_processed <- x_train_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
+# 																									f2 = atan(theta_mean_all/psi_mean_all))
+# x_test_processed <- x_test_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
+# 																									f2 = atan(theta_mean_all/psi_mean_all))
+# 
+# x_train_processed <- x_train_processed %>% select(series_id, surface,
+# 																									phi_mean_all, theta_mean_all,
+# 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
+# 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
+# 																									dist_total, omega_total, theta_total, psi_total,
+# 																									phi_sd, theta_sd,
+# 																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
+# 
+# x_test_processed <- x_test_processed  %>% select(series_id,
+# 																									phi_mean_all, theta_mean_all,
+# 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
+# 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
+# 																									dist_total, omega_total, theta_total, psi_total,
+# 																									phi_sd, theta_sd,
+# 																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
 
-x_train_processed <- x_train_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
-																									f2 = atan(theta_mean_all/psi_mean_all))
-x_test_processed <- x_test_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
-																									f2 = atan(theta_mean_all/psi_mean_all))
+# ########################################################################################################
+
+
+# used for models 9
+# ########################################################################################################
+x_train_processed <- x_train_processed %>% mutate(f1 = log(dist_mean_to_sd*omega_mean_to_sd),
+																									f2 = abs(atan(theta_mean_all/psi_mean_all)))
+x_test_processed <- x_test_processed %>% mutate(f1 = log(dist_mean_to_sd*omega_mean_to_sd),
+																									f2 = abs(atan(theta_mean_all/psi_mean_all)))
 
 x_train_processed <- x_train_processed %>% select(series_id, surface,
-																									phi_mean_all, theta_mean_all,
+																									f1, f2, phi_mean_all,
 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
-																									dist_total, omega_total, theta_total, psi_total,
+																								  theta_total, psi_total,
 																									phi_sd, theta_sd,
-																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
+																									dist_mean_to_sd, omega_mean_to_sd)
 
 x_test_processed <- x_test_processed  %>% select(series_id,
-																									phi_mean_all, theta_mean_all,
+																									f1, f2, phi_mean_all,
 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
-																									dist_total, omega_total, theta_total, psi_total,
+																									theta_total, psi_total,
 																									phi_sd, theta_sd,
-																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
+																									dist_mean_to_sd, omega_mean_to_sd)
 
 # ########################################################################################################
 
@@ -284,6 +310,8 @@ x_pool_sub <- x_test_processed %>% inner_join(x_pool_sub, by = "series_id") %>%
 x_pool_sub <- x_pool_sub %>% mutate(surface = as.factor(surface))
 
 x_train_processed <- bind_rows(x_train_processed, x_pool_sub)
+
+
 
 # ########################################################################################################
 # # use PCA
@@ -310,7 +338,7 @@ x_train_for_test <- x_train_processed[test_index, ]
 tic(" fit model knn")
 fit <- train(surface ~ . ,  method = "knn", 
              tuneGrid = data.frame(k = seq(2, 100, 2)), 
-             data = x_train_for_train)
+             data = select(x_train_for_train, -series_id))
 toc()
 
 ggplot(fit) 
@@ -341,7 +369,7 @@ confusionMatrix(predict(train_rpart, x_train_for_test), x_train_for_test$surface
 
 ```{r}
 
-model_fit_RF_untuned <- randomForest(surface ~ ., data = select(x_train_for_train, -series_id))
+model_fit_RF_untuned <- randomForest(surface ~ ., metric = "ROC", data = select(x_train_for_train, -series_id))
 
 y_hat <- predict(model_fit_RF_untuned, x_train_for_test)
 y_test <- x_train_for_test$surface
@@ -380,9 +408,9 @@ trControl = trainControl(method = "cv",
 ## Random Forests Customized one-vs-one
 
 ```{r randomTrees, fig.height=9, fig.width = 16}
-control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid")
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid", classProbs = TRUE)
 
-metric <- "Accuracy"
+metric <- "ROC"
 
 mtry <- sqrt(ncol(x_train_for_train) - 1)
 # mtry <- 2:5
@@ -402,6 +430,7 @@ customRF$levels 		<- 	function(x) x$surface
 
 model_fit_rf <- train(surface ~ ., 
 											data = select(x_train_for_train, -series_id), 
+											#data = x_train_for_train, 
 											method=customRF, 
 											metric=metric, 
 											tuneGrid=tunegrid, 
@@ -410,7 +439,7 @@ model_fit_rf <- train(surface ~ .,
 print(model_fit_rf)
 plot(model_fit_rf)
 
-y_hat <- predict(model_fit_rf, x_train_for_test)
+y_hat <- predict(model_fit_rf, select(x_train_for_test, -series_id))
 y_test <- x_train_for_test$surface
 
 importance <- importance(model_fit_rf$finalModel)
@@ -470,10 +499,10 @@ Qw will save each modeel on a file on hard-disk
 
 ```{r one-vs-all}
 # get a small chunk for now
-x_train_processed_ova <- x_train_processed  # %>% slice(1:1000)
+x_train_processed_ova <- x_train_processed   %>% slice(1:1000)
 
 # a prefix to save models on hdd
-model_prefix <- "model_08_fit_"
+model_prefix <- "model_09_fit_"
 
 # # partition data into train and test
 # test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
@@ -486,6 +515,10 @@ folds <- createFolds(x_train_processed_ova$surface, k = 3, list = TRUE)
 x_train_for_train_ova <- x_train_processed_ova[folds$Fold1,]
 x_train_for_test_ova <- x_train_processed_ova[folds$Fold2,]
 x_train_pool <- x_train_processed_ova[folds$Fold3,]
+
+# instead of balancing, we merge the pool with the train set
+# x_train_for_train_ova <- bind_rows(x_train_for_train_ova, x_train_pool)
+
 
 # get surfaces in a data frame, so we can loop over
 surfaces <- x_train_for_train_ova %>% group_by(surface) %>% 
@@ -506,9 +539,9 @@ for(current_surface in surfaces$surface)
 			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
 			mutate(surface = as.factor(surface))
 		
-		# add records from thee pool to balance the recordset
-		x_chunk_for_balance <- x_train_pool %>% filter(surface == current_surface)
-		x_train_for_train_ova_current <- bind_rows(x_train_for_train_ova_current, x_chunk_for_balance)
+		# # add records from thee pool to balance the recordset
+		# x_chunk_for_balance <- x_train_pool %>% filter(surface == current_surface)
+		# x_train_for_train_ova_current <- bind_rows(x_train_for_train_ova_current, x_chunk_for_balance)
 		
 		###################################################################################################
 		# custom randomForest
@@ -606,8 +639,14 @@ for(current_surface in surfaces$surface){
 	model_fit_current <- readRDS(paste("models/", model_name, ".rds", sep = ""))
 	
 	# get y_hat and y_hat_prob
-	y_hat <- predict(model_fit_current, x_train_for_test_ova_current, type = "raw")
-	y_hat_prob <- predict(model_fit_current, x_train_for_test_ova_current, type = "prob")
+	y_hat <- predict(
+										model_fit_current, 
+									 	select(x_train_for_test_ova_current, -series_id), 
+										type = "raw")
+	y_hat_prob <- predict(
+										model_fit_current, 
+										select(x_train_for_test_ova_current, -series_id), 
+										type = "prob")
 	
 	# get the y_test
 	y_test <-  x_train_for_test_ova_current$surface
@@ -703,6 +742,6 @@ for (i in 1:nrow(results_voting)) {
 results_voting <- results_voting %>% mutate(surface = as.factor(surface))
 
 submission <- results_voting %>% select(series_id, surface)
-write_csv(submission, "data/submission_05.csv")
+write_csv(submission, "data/submission_09.csv")
 ```
 
