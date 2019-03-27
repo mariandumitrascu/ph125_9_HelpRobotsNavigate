@@ -208,20 +208,22 @@ x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")
 
 write_csv(x_train_processed, "data/x_train_processed.csv")
 write_csv(x_test_processed, "data/x_test_processed.csv")
+
+rm(x_train_processed, x_test_processed)
 ```
 
 ## Load Pre-processed Data From Hard-disk
 
 ```{r load data and partition, echo=TRUE, message=FALSE, warning=FALSE}
 
-x_train_processed <- read_csv("data/x_train_processed.csv")
-x_test_processed <- read_csv("data/x_test_processed.csv")
+x_train_processed_from_file <- read_csv("data/x_train_processed.csv")
+x_test_processed_from_file <- read_csv("data/x_test_processed.csv")
 
 # if we load data from a file, convert surface to factor
-x_train_processed <- x_train_processed %>% mutate(surface = as.factor(surface))
+x_train_processed_from_file <- x_train_processed_from_file %>% mutate(surface = as.factor(surface))
 
 # use a smaller set of datab to save time
-x_train_processed <- x_train_processed # %>% slice(1:1000)
+x_train_processed_from_file <- x_train_processed_from_file # %>% slice(1:1000)
 
 
 
@@ -232,8 +234,10 @@ x_train_processed <- x_train_processed # %>% slice(1:1000)
 
 ```{r}
 
+x_test_processed <- x_test_processed_from_file
+
 # remove group_id
-x_train_processed <- x_train_processed %>% select(-group_id)
+x_train_processed <- x_train_processed_from_file %>% select(-group_id)
 
 # ##########################
 # try diversee sets of features
@@ -262,38 +266,74 @@ x_train_processed <- x_train_processed %>% select(-group_id)
 # 																									dist_total, omega_total, theta_total, psi_total,
 # 																									phi_sd, theta_sd,
 # 																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
-<<<<<<< HEAD
+# ########################################################################################################
+
 
 # ########################################################################################################
 
-=======
-
-# ########################################################################################################
-
->>>>>>> 8b1e14b371c3cf14cbec8ac2890051b2a1d6e36e
 
 # used for models 9
 # ########################################################################################################
-x_train_processed <- x_train_processed %>% mutate(f1 = log(dist_mean_to_sd*omega_mean_to_sd),
+x_train_processed <- x_train_processed %>% mutate(
+																									f1 = log(dist_mean_to_sd*omega_mean_to_sd),
 																									f2 = abs(atan(theta_mean_all/psi_mean_all)))
-x_test_processed <- x_test_processed %>% mutate(f1 = log(dist_mean_to_sd*omega_mean_to_sd),
+x_test_processed <- x_test_processed %>% mutate( 
+																									f1 = log(dist_mean_to_sd*omega_mean_to_sd),
 																									f2 = abs(atan(theta_mean_all/psi_mean_all)))
 
 x_train_processed <- x_train_processed %>% select(series_id, surface,
-																									f1, f2, phi_mean_all,
-																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
-																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
-																								  theta_total, psi_total,
-																									phi_sd, theta_sd,
-																									dist_mean_to_sd, omega_mean_to_sd)
+																									f1, f2, 
+																									phi_mean_to_sd_all, 
+																									theta_mean_to_sd_all, 
+																									psi_mean_to_sd_all,
+																									# phi_mean_to_sd, 
+																									# theta_mean_to_sd, 
+																									# psi_mean_to_sd,
+																								  theta_total, 
+																									psi_total, 
+																									phi_total,
+																									phi_sd, theta_sd, psi_sd,
+																									phi_mean_all, 
+																									theta_mean_all, 
+																									psi_mean_all,
+																								 	dist_mean_to_sd, 
+																									dist_mean,
+																									dist_sd,
+																									dist_total,
+																									dist_max,
+																									omega_mean_to_sd,
+																									omega_mean,
+																									omega_sd,
+																									omega_total,
+																									omega_max)
 
 x_test_processed <- x_test_processed  %>% select(series_id,
-																									f1, f2, phi_mean_all,
-																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
-																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
-																									theta_total, psi_total,
-																									phi_sd, theta_sd,
-																									dist_mean_to_sd, omega_mean_to_sd)
+																									f1, f2, 
+																									phi_mean_to_sd_all, 
+																								 	theta_mean_to_sd_all, 
+																								 	psi_mean_to_sd_all,
+																									# phi_mean_to_sd, 
+																								  # theta_mean_to_sd, 
+																								 	# psi_mean_to_sd,
+																									theta_total, 
+																								 	psi_total, 
+																								 	phi_total,
+																									phi_sd, 
+																								 	theta_sd, 
+																								 	psi_sd,
+																								 	phi_mean_all,
+																								 	theta_mean_all, 
+																								 	psi_mean_all,
+																								 	dist_mean_to_sd,
+																								 	dist_mean,
+																								 	dist_sd,
+																								 	dist_total,
+																								 	dist_max,
+																								 	omega_mean_to_sd,
+																								 	omega_mean,
+																								 	omega_sd,
+																								 	omega_total,
+																								 	omega_max)
 
 # ########################################################################################################
 
@@ -342,7 +382,7 @@ x_train_for_test <- x_train_processed[test_index, ]
 ```{r}
 
 tic(" fit model knn")
-fit <- train(surface ~ f1 + f2 ,  method = "knn", 
+fit <- train(surface ~ . ,  method = "knn", 
              tuneGrid = data.frame(k = seq(2, 100, 2)), 
              data = select(x_train_for_train, -series_id))
 toc()
@@ -375,9 +415,13 @@ confusionMatrix(predict(train_rpart, x_train_for_test), x_train_for_test$surface
 
 ```{r}
 
-model_fit_RF_untuned <- randomForest(surface ~ ., metric = "ROC", data = select(x_train_for_train, -series_id))
+model_fit_RF_untuned <- randomForest(
+	surface ~ ., 
+	metric = "ROC", 
+	data = select(x_train_for_train, -series_id)
+	)
 
-y_hat <- predict(model_fit_RF_untuned, x_train_for_test)
+y_hat <- predict(model_fit_RF_untuned, select(x_train_for_test, -series_id))
 y_test <- x_train_for_test$surface
 
 sum(y_hat == y_test)/nrow(x_train_for_test)
@@ -396,31 +440,18 @@ conf_matrix$table %>% knitr::kable()
 # write_csv(x_test_processed_for_submission, "data/submission_RF_untuned0_02.csv")
 
 ```
-## Random Forest Caret Package
-
-```{r}
-
-model_fit_rf <- train(Class ~ ., data = training,
-method = "rf",
-metric = "ROC",
-tuneGrid = data.frame(mtry = 3),
-trControl = trainControl(method = "cv",
-                        classProbs = TRUE,
-                        summaryFunction = twoClassSummary))
-
-```
 
 
 ## Random Forests Customized one-vs-one
 
 ```{r randomTrees, fig.height=9, fig.width = 16}
-control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid", classProbs = TRUE)
+control <- trainControl(method="repeatedcv", number=20, repeats=2, search="grid", classProbs = TRUE)
 
-metric <- "ROC"
+metric <- "Accuracy"
 
 mtry <- sqrt(ncol(x_train_for_train) - 1)
 # mtry <- 2:5
-tunegrid <- expand.grid(.mtry=mtry,.ntree=c(500, 1000, 1500, 2000, 2500) )
+tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 200, 500, 1000) )
 
 # tunegrid <- expand.grid(.mtry=c(1:10))
 
@@ -435,7 +466,7 @@ customRF$levels 		<- 	function(x) x$surface
 
 
 model_fit_rf <- train(surface ~ ., 
-											data = select(x_train_for_train, -series_id), 
+											data = slice(select(x_train_for_train, -series_id), 1:500), 
 											#data = x_train_for_train, 
 											method=customRF, 
 											metric=metric, 
@@ -449,28 +480,12 @@ y_hat <- predict(model_fit_rf, select(x_train_for_test, -series_id))
 y_test <- x_train_for_test$surface
 
 importance <- importance(model_fit_rf$finalModel)
-# importance[order(importance[,1], decreasing = TRUE), ]
-# varImpPlot(model_fit_rf$finalModel)
+importance[order(importance[,1], decreasing = TRUE), ]
+varImpPlot(model_fit_rf$finalModel)
 
 conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
 conf_matrix$table
-
-# nzv <- nearZeroVar(x_train_for_train)
-# nzv[,][1:10,]
-
-# create the model using the whole train data 
-# model_fit_rf <- train(surface~., data=x_train_processed, method=customRF, metric=metric, tuneGrid=tunegrid, trControl=control)
-
-# save the model
-# saveRDS(model_fit_rf, file = "models/model_fit_RF_one_vs_one.rds")
-
-# # save the model
-# saveRDS(model_fit_rf, file = "models/model_RF_one_vs_one.rds")
-# model_soft_pvc <- readRDS("models/model_RF_one_vs_one.rds")
-# y_hat <- predict(model_soft_pvc, x_train_for_test)
-# y_test <- x_train_for_test$surface
-# print(sum(y_hat == y_test)/nrow(x_train_for_test))
 ```
 
 
@@ -505,10 +520,10 @@ Qw will save each modeel on a file on hard-disk
 
 ```{r one-vs-all}
 # get a small chunk for now
-x_train_processed_ova <- x_train_processed   %>% slice(1:1000)
+x_train_processed_ova <- x_train_processed   #%>% slice(1:1500)
 
 # a prefix to save models on hdd
-model_prefix <- "model_09_fit_"
+model_prefix <- "model_11_fit_"
 
 # # partition data into train and test
 # test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
@@ -541,20 +556,20 @@ for(current_surface in surfaces$surface)
 		# 	mutate(surface = as.factor(surface))	
 		
 		# do training of full train data
-		x_train_for_train_ova_current <- x_train_processed_ova %>% 
+		x_train_for_train_ova_current <- x_train_for_train_ova %>% 
 			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
 			mutate(surface = as.factor(surface))
 		
-		# # add records from thee pool to balance the recordset
-		# x_chunk_for_balance <- x_train_pool %>% filter(surface == current_surface)
-		# x_train_for_train_ova_current <- bind_rows(x_train_for_train_ova_current, x_chunk_for_balance)
+		# add records from thee pool to balance the recordset
+		x_chunk_for_balance <- x_train_pool %>% filter(surface == current_surface)
+		x_train_for_train_ova_current <- bind_rows(x_train_for_train_ova_current, x_chunk_for_balance)
 		
 		###################################################################################################
 		# custom randomForest
 		# 
 		mtry <- sqrt(ncol(x_train_for_train_ova_current) - 1)
 		tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 300, 400, 500, 1000, 1500, 2000))
-		control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid", classProbs = TRUE, summaryFunction = twoClassSummary)
+		control <- trainControl(method="repeatedcv", number=20, repeats=2, search="grid", classProbs = TRUE, summaryFunction = twoClassSummary)
 		customRF 						<- 	list(type = "Classification", library = "randomForest", loop = NULL)
 		customRF$parameters <- 	data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
 		customRF$grid 			<- 	function(x, y, len = NULL, search = "grid") {}
@@ -565,7 +580,7 @@ for(current_surface in surfaces$surface)
 		customRF$levels 		<- 	function(x) x$surface
 				
 		model_fit_current <- train(surface ~ ., 
-															 data = x_train_for_train_ova_current, 
+															 data = select(x_train_for_train_ova_current, -series_id), 
 															 method=customRF, 
 															 metric="ROC", 
 															 tuneGrid=tunegrid, 
@@ -584,7 +599,7 @@ for(current_surface in surfaces$surface)
 		###################################################################################################
 
 		
-		print(model_fit_current)
+		# print(model_fit_current)
 		# plot(model_fit_current)
 		
 		model_name <- paste(model_prefix, current_surface, sep = "")
@@ -635,7 +650,8 @@ results_voting <- data.frame(
 
 for(current_surface in surfaces$surface){
 	
-	# prepare the test dataset
+	# prepare the test dataset: we keep current surfacee name, and we rename all other surfaces to "the_rest"
+	# we have now a binary clasification.
 	x_train_for_test_ova_current <- x_train_for_test_ova %>% 
 			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
 			mutate(surface = as.factor(surface))
@@ -669,31 +685,15 @@ for(current_surface in surfaces$surface){
 	results_voting <- results_voting %>% mutate(last_result_prob = y_hat_prob[,current_surface])
 	names(results_voting)[ncol(results_voting)] <- current_surface # the column name is current surface
 	
-	# compute confusion matrix and print it
-	conf_matrix <- confusionMatrix(y_hat, x_train_for_test_ova_current$surface)
-	print(conf_matrix$overall["Accuracy"])
-	print(conf_matrix$table)
-
 		# store accuracy
 	results_df <- results_df %>% bind_rows(data.frame(surface = current_surface, model_name = model_name, ova_accuracy = as.character(conf_matrix$overall["Accuracy"] )))
 	
 }
 
-# analyse some cases
-# results %>% filter(series_id == 66)
-
-# sum(results[,6] == "the_rest")
-# 
-# results %>%  knitr::kable() %>% 
-# 	kable_styling(full_width = F)
-# 
-# results_df %>% knitr::kable()
-
-# y_hat_hard_tiles <- y_hat
-# sum(y_hat[,1] >= 0.2)
-# 
+# add an empty column for predicted surfaces 
 results_voting <- results_voting %>%  mutate(pred_surface = rep("", nrow(results_voting)))
 
+# set the value on predicted surface to the surface that got maximum probability
 for (i in 1:nrow(results_voting)) {
 		results_voting[i, "pred_surface"] <- names(which.max(select(results_voting[i,], -series_id, -true_surface, -pred_surface)))
 }
@@ -701,7 +701,15 @@ for (i in 1:nrow(results_voting)) {
 results_voting <- results_voting %>% mutate(pred_surface = as.factor(pred_surface))
 
 # overall accuracy
-sum(results_voting[, "true_surface"] == results_voting[, "pred_surface"])/nrow(results_voting)
+# sum(results_voting[, "true_surface"] == results_voting[, "pred_surface"])/nrow(results_voting)
+
+# compute confusion matrix and print it
+conf_matrix <- confusionMatrix(results_voting$pred_surface,
+															 results_voting$true_surface)
+print(conf_matrix$overall["Accuracy"])
+print(conf_matrix$table)
+
+
 ```
 
 
@@ -729,8 +737,14 @@ for(current_surface in surfaces$surface){
 	model_fit_current <- readRDS(paste("models/", model_name, ".rds", sep = ""))
 	
 	# get y_hat and y_hat_prob
-	y_hat <- predict(model_fit_current, x_test_processed, type = "raw")
-	y_hat_prob <- predict(model_fit_current, x_test_processed, type = "prob")
+	y_hat <- predict(
+							model_fit_current, 
+							select(x_test_processed, -series_id), 
+							type = "raw")
+	y_hat_prob <- predict(
+							model_fit_current, 
+							select(x_test_processed, -series_id), 
+							type = "prob")
 
 	# store the probability of curent model for current surface in a column named by current surface
 	results_voting <- results_voting %>% mutate(last_result_prob = y_hat_prob[,current_surface])
@@ -747,11 +761,13 @@ for (i in 1:nrow(results_voting)) {
 
 results_voting <- results_voting %>% mutate(surface = as.factor(surface))
 
+# create the submission data
 submission <- results_voting %>% select(series_id, surface)
-<<<<<<< HEAD
-write_csv(submission, "data/submission_08.csv")
-=======
-write_csv(submission, "data/submission_09.csv")
->>>>>>> 8b1e14b371c3cf14cbec8ac2890051b2a1d6e36e
+
+# save the file on the file system
+file_name <- paste("data/",model_prefix, "submission.csv", sep = "")
+write_csv(submission, file_name)
+
+
 ```
 

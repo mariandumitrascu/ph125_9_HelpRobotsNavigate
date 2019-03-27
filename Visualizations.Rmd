@@ -10,6 +10,23 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
+```{r}
+# install.packages("ISLR")
+# install.packages("orientlib")
+# install.packages("RSpincalc")
+# devtools::install_github("collectivemedia/tictoc")
+# install.packages("kableExtra")
+library(readr)
+library(tidyverse)
+library(ISLR)
+library(caret)
+library(orientlib)
+library(matrixStats)
+library(randomForest)
+library(RSpincalc)
+library(tictoc)
+library(kableExtra)
+```
 
 
 
