@@ -36,6 +36,11 @@ x_train_processed %>%  ggplot(aes(omega_total, omega_mean_to_sd, fill = surface)
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
 
+x_train_processed %>%  ggplot(aes(dist_total*omega_total,dist_mean_to_sd*omega_mean_to_sd, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+
 x_train_processed %>%  ggplot(aes(euler_total, euler_mean_to_sd, fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
@@ -61,11 +66,20 @@ x_train_processed %>%  ggplot(aes(theta_mean_all, phi_mean_all, fill = surface))
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
 
-x_train_processed %>%  ggplot(aes(atan(dist_mean_to_sd/omega_mean_to_sd), atan(theta_mean_all/psi_mean_all), fill = surface)) +
+x_train_processed %>%  ggplot(aes(abs(atan(dist_mean_to_sd/omega_mean_to_sd)), atan(theta_mean_all/psi_mean_all), fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=5, pch=21)
 
 x_pool_sub %>%  ggplot(aes(atan(dist_mean_to_sd/omega_mean_to_sd), atan(theta_mean_all/psi_mean_all), fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=5, pch=21)
+
+
+x_train_processed %>%  ggplot(aes(log(dist_total*omega_total), abs(atan(theta_mean_all/psi_mean_all)), fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=5, pch=21)
+
+x_train_processed %>%  ggplot(aes(log(dist_mean_to_sd*omega_mean_to_sd), abs(atan(theta_mean_all/psi_mean_all)), fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=5, pch=21)
 

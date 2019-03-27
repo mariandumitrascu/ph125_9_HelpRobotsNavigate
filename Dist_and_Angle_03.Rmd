@@ -240,28 +240,54 @@ x_train_processed <- x_train_processed %>% select(-group_id)
 
 # x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all,   dist_total, dist_sd,    dist_mean,  omega_total,    psi_total,    dist_mean_to_sd,   omega_mean,     psi_mean, psi_sd,  psi_mean_to_sd_all,     omega_sd, theta_mean_to_sd_all,     dist_max,     theta_sd, phi_mean_to_sd_all)
 
-# used for last models
+# used for models 8
+# ########################################################################################################
+# x_train_processed <- x_train_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
+# 																									f2 = atan(theta_mean_all/psi_mean_all))
+# x_test_processed <- x_test_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
+# 																									f2 = atan(theta_mean_all/psi_mean_all))
+# 
+# x_train_processed <- x_train_processed %>% select(series_id, surface,
+# 																									phi_mean_all, theta_mean_all,
+# 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
+# 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
+# 																									dist_total, omega_total, theta_total, psi_total,
+# 																									phi_sd, theta_sd,
+# 																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
+# 
+# x_test_processed <- x_test_processed  %>% select(series_id,
+# 																									phi_mean_all, theta_mean_all,
+# 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
+# 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
+# 																									dist_total, omega_total, theta_total, psi_total,
+# 																									phi_sd, theta_sd,
+# 																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
 
-x_train_processed <- x_train_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
-																									f2 = atan(theta_mean_all/psi_mean_all))
-x_test_processed <- x_test_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
-																									f2 = atan(theta_mean_all/psi_mean_all))
+# ########################################################################################################
+
+
+# used for models 9
+# ########################################################################################################
+x_train_processed <- x_train_processed %>% mutate(f1 = log(dist_mean_to_sd*omega_mean_to_sd),
+																									f2 = abs(atan(theta_mean_all/psi_mean_all)))
+x_test_processed <- x_test_processed %>% mutate(f1 = log(dist_mean_to_sd*omega_mean_to_sd),
+																									f2 = abs(atan(theta_mean_all/psi_mean_all)))
 
 x_train_processed <- x_train_processed %>% select(series_id, surface,
-																									phi_mean_all, theta_mean_all,
+																									f1, f2, phi_mean_all,
 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
-																									dist_total, omega_total, theta_total, psi_total,
+																								  theta_total, psi_total,
 																									phi_sd, theta_sd,
-																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
+																									dist_mean_to_sd, omega_mean_to_sd)
 
 x_test_processed <- x_test_processed  %>% select(series_id,
-																									phi_mean_all, theta_mean_all,
+																									f1, f2, phi_mean_all,
 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
-																									dist_total, omega_total, theta_total, psi_total,
+																									theta_total, psi_total,
 																									phi_sd, theta_sd,
-																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
+																									dist_mean_to_sd, omega_mean_to_sd)
 
 # ########################################################################################################
 
@@ -308,7 +334,7 @@ x_train_for_test <- x_train_processed[test_index, ]
 ```{r}
 
 tic(" fit model knn")
-fit <- train(surface ~ . ,  method = "knn", 
+fit <- train(surface ~ f1 + f2 ,  method = "knn", 
              tuneGrid = data.frame(k = seq(2, 100, 2)), 
              data = x_train_for_train)
 toc()
@@ -341,7 +367,7 @@ confusionMatrix(predict(train_rpart, x_train_for_test), x_train_for_test$surface
 
 ```{r}
 
-model_fit_RF_untuned <- randomForest(surface ~ ., data = select(x_train_for_train, -series_id))
+model_fit_RF_untuned <- randomForest(surface ~ ., metric = "ROC", data = select(x_train_for_train, -series_id))
 
 y_hat <- predict(model_fit_RF_untuned, x_train_for_test)
 y_test <- x_train_for_test$surface
@@ -380,9 +406,9 @@ trControl = trainControl(method = "cv",
 ## Random Forests Customized one-vs-one
 
 ```{r randomTrees, fig.height=9, fig.width = 16}
-control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid")
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid", classProbs = TRUE)
 
-metric <- "Accuracy"
+metric <- "ROC"
 
 mtry <- sqrt(ncol(x_train_for_train) - 1)
 # mtry <- 2:5
@@ -703,6 +729,6 @@ for (i in 1:nrow(results_voting)) {
 results_voting <- results_voting %>% mutate(surface = as.factor(surface))
 
 submission <- results_voting %>% select(series_id, surface)
-write_csv(submission, "data/submission_05.csv")
+write_csv(submission, "data/submission_08.csv")
 ```
 
