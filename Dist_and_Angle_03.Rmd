@@ -270,7 +270,7 @@ x_train_processed %>%  ggplot(aes(euler_total, euler_mean_to_sd, fill = surface)
 ```
 
 
-```{r, fig.width=16, fig.height=9, fig.retina=4}
+```{r, fig.width=13, fig.height=10, fig.retina=4}
 
 # #####################################################################################################
 # euler gyro angles
@@ -278,14 +278,26 @@ x_train_processed %>%  ggplot(aes(phi_mean_all, psi_mean_all, fill = surface)) +
 	geom_point(aes(color = surface)) + 
 	geom_point(cex=6, pch=21)
 
+# this is a circle
 x_train_processed %>%  ggplot(aes(theta_mean_all, psi_mean_all, fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
 
+# this is a wave
 x_train_processed %>%  ggplot(aes(theta_mean_all, phi_mean_all, fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(atan(dist_mean_to_sd/omega_mean_to_sd), atan(theta_mean_all/psi_mean_all), fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=5, pch=21)
+
 # #####################################################################################################
+```
+
+
+
+```{r, fig.width=13, fig.height=10, fig.retina=4}
 
 x_train_processed %>%  ggplot(aes(phi_mean_to_sd_all, psi_mean_to_sd_all, fill = surface)) +
 	geom_point(aes(color = surface)) +

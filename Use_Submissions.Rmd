@@ -1,0 +1,259 @@
+---
+title: "Surface Detection by Robot Movements"
+author: "Marian Dumitrascu"
+date: "March 19, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Surface Detection by Robot Movements
+
+
+## Introduction
+
+gyros, accelerometer and magnetometer sensor
+
+## Load Libraries
+
+```{r data load, message=FALSE, warning=FALSE}
+# install.packages("ISLR")
+# install.packages("orientlib")
+# install.packages("RSpincalc")
+# devtools::install_github("collectivemedia/tictoc")
+# install.packages("kableExtra")
+library(readr)
+library(tidyverse)
+library(ISLR)
+library(caret)
+library(orientlib)
+library(matrixStats)
+library(randomForest)
+library(RSpincalc)
+library(tictoc)
+library(kableExtra)
+
+```
+
+## Load Data
+
+```{r}
+
+x_train <- read_csv("data/X_train.csv")
+y_train <- read_csv("data/y_train.csv")
+x_test <- read_csv("data/x_test.csv")
+
+```
+
+
+```{r data analysis}
+
+# join the labels with the training data set
+train_set <- x_train %>% left_join(y_train, by = "series_id")
+train_df <- as.data.frame(train_set)
+test_df <- as.data.frame(x_test)
+
+train_df <- mutate(train_df, surface = as.factor(surface)) %>% 
+	select(-group_id)
+
+```
+
+```{r}
+
+convert_quaternions_to_euler <- function(a_dataset){
+	
+	# use Q2EA from RSpincalc to convert quaternions to euler angles
+	Q <- a_dataset %>% select(orientation_X, orientation_Y, orientation_Z, orientation_W) %>% as.matrix()
+	
+	euler_matrix <- Q2EA(Q, EulerOrder='xyz', tol = 10 * .Machine$double.eps, ichk = FALSE, ignoreAllChk = FALSE)
+
+	# add the new columns to the dataset
+	a_dataset <- a_dataset %>% mutate(phi = euler_matrix[,1], theta = euler_matrix[,2], psi = euler_matrix[,3])
+	
+	# remove quaternion columns
+	a_dataset <- a_dataset %>% select(-orientation_X, -orientation_Y,  -orientation_Z, -orientation_W)
+	
+	# return the new dataset
+	a_dataset
+}
+
+train_df <- convert_quaternions_to_euler(train_df)
+test_df <- convert_quaternions_to_euler(test_df)
+
+
+```
+
+
+
+```{r}
+# function for prreprocessing 
+# n_of_rows defaults to total number ofseries
+# is_train indicates that the data is training, thus will do an extra action
+pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
+	
+	# get data grouped by seeries_id and compute some means 
+	processed_data_df <- a_dataframe %>% 
+	group_by(series_id) %>% 
+	summarize(
+		phi_mean_all = mean(phi),
+		phi_sd_all = sd(phi),
+		phi_mean_to_sd_all = mean(phi)/sd(phi),
+		theta_mean_all = mean(theta),
+		theta_sd_all = sd(theta),
+		theta_mean_to_sd_all = mean(theta)/sd(theta),
+		psi_mean_all = mean(psi),
+		psi_sd_all = sd(psi),
+		psi_mean_to_sd_all = mean(psi)/sd(psi)
+		) %>% 
+		slice(1:n_of_rows)
+	
+	# define an empty data frame with summary metrics that we'll use for each set of 128 observations
+	metrics <- c("dist_total","dist_max","dist_min","dist_max_to_min","dist_mean","dist_sd","dist_mean_to_sd",
+							 "omega_total","omega_max","omega_min","omega_max_to_min","omega_mean","omega_sd","omega_mean_to_sd",
+							 "phi_total","phi_max","phi_min","phi_mean","phi_sd","phi_mean_to_sd",
+							 "theta_total","theta_max","theta_min","theta_mean","theta_sd","theta_mean_to_sd",
+							 "psi_total","psi_max","psi_min","psi_mean","psi_sd","psi_mean_to_sd",
+							 "euler_total","euler_max","euler_min","euler_mean","euler_sd","euler_mean_to_sd")
+	tmp_df <- data.frame(matrix(ncol = length(metrics), nrow = 0) )
+	colnames(tmp_df) <- metrics
+
+	# loop over each series
+	# should use apply type of function here, but I use "for" until I master the apply
+	for (s_id in processed_data_df$series_id)
+	{
+		# get current measurement set
+		this_chunk_df <- a_dataframe %>% filter(series_id == s_id)
+		
+		# select only columns we are interested in 
+		this_chunk_df <- this_chunk_df %>% 
+			select(
+			phi, theta, psi,  
+			angular_velocity_X, angular_velocity_Y, angular_velocity_Z,
+			linear_acceleration_X, linear_acceleration_Y, linear_acceleration_Z)
+
+		dist_v <- sqrt(diff(this_chunk_df$linear_acceleration_X)^2 + diff(this_chunk_df$linear_acceleration_Y)^2 + diff(this_chunk_df$linear_acceleration_Z)^2)
+		omega_v <- sqrt(diff(this_chunk_df$angular_velocity_X)^2 + diff(this_chunk_df$angular_velocity_Y)^2 + diff(this_chunk_df$angular_velocity_Z)^2)
+		phi_v <- abs(diff(this_chunk_df$phi))
+		theta_v <- abs(diff(this_chunk_df$theta))
+		psi_v <- abs(diff(this_chunk_df$psi))
+
+		# fill or temp data frame with summary computations for our 128 measurement set
+		tmp_df <- bind_rows(tmp_df, data_frame(
+			dist_total = sum(dist_v),
+			dist_max = max(dist_v),
+			dist_min = min(dist_v),
+			dist_max_to_min = max(dist_v)/min(dist_v),
+			dist_mean = mean(dist_v),
+			dist_sd = sd(dist_v),
+			dist_mean_to_sd = mean(dist_v)/sd(dist_v),  # reciprocal coef of variation
+			
+			omega_total = sum(omega_v),
+			omega_max = max(omega_v),
+			omega_min = min(omega_v),
+			omega_max_to_min = max(omega_v)/min(omega_v),
+			omega_mean = mean(omega_v),
+			omega_sd = sd(omega_v),
+			omega_mean_to_sd = mean(omega_v)/sd(omega_v), # reciprocal coef of variation
+
+			phi_total = sum(phi_v),
+			phi_max = max(phi_v),
+			phi_min = min(phi_v),
+			phi_mean = mean(phi_v),
+			phi_sd = sd(phi_v),
+			phi_mean_to_sd = mean(phi_v)/sd(phi_v),
+			
+			theta_total = sum(theta_v),
+			theta_max = max(theta_v),
+			theta_min = min(theta_v),
+			theta_mean = mean(theta_v),
+			theta_sd = sd(theta_v),
+			theta_mean_to_sd = mean(theta_v)/sd(theta_v),
+			
+			psi_total = sum(psi_v),
+			psi_max = max(psi_v),
+			psi_min = min(psi_v),
+			psi_mean = mean(psi_v),
+			psi_sd = sd(psi_v),
+			psi_mean_to_sd = mean(psi_v)/sd(psi_v),
+			
+			euler_total = sum(phi_v + theta_v + psi_v), 
+			euler_max = max(phi_v + theta_v + psi_v),
+			euler_min = min(phi_v + theta_v + psi_v),
+			euler_mean = mean(phi_v + theta_v + psi_v),
+			euler_sd = sd(phi_v + theta_v + psi_v),
+			euler_mean_to_sd = mean(phi_v + theta_v + psi_v)/sd(phi_v + theta_v + psi_v)
+			))
+	
+	} # end of for over series
+	
+	# add the summary computations to the data set of series
+	processed_data_df <- bind_cols(processed_data_df, tmp_df)
+
+	# return the proceessed data
+	processed_data_df
+}
+
+```
+
+
+```{r preprocess both train and test data and save}
+
+# pre-process train and test data sets
+tic("process train data")
+x_train_processed <- pre_process(train_df)
+toc()
+
+tic("process test data")
+x_test_processed <- pre_process(test_df)
+toc()
+
+# rejoin train data with the labels data set
+x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")
+
+write_csv(x_train_processed, "data/x_train_processed.csv")
+write_csv(x_test_processed, "data/x_test_processed.csv")
+```
+
+## Load Pre-processed Data From Hard-disk
+
+```{r load data and partition, echo=TRUE, message=FALSE, warning=FALSE}
+
+x_train_processed <- read_csv("data/x_train_processed.csv")
+x_test_processed <- read_csv("data/x_test_processed.csv")
+
+# if we load data from a file, convert surface to factor
+x_train_processed <- x_train_processed %>% mutate(surface = as.factor(surface))
+
+# use a smaller set of datab to save time
+x_train_processed <- x_train_processed # %>% slice(1:1000)
+
+
+
+```
+
+
+
+
+## Get Some Data From Submissions
+
+```{r}
+
+s6 <- read_csv("data/submission_06.csv")
+s5 <- read_csv("data/submission_05.csv")
+s4 <- read_csv("data/submission_04.csv")
+s3 <- read_csv("data/submission_03.csv")
+s2 <- read_csv("data/submission_RF_untuned0_02.csv")
+
+x_pool_sub <- s6 %>% 
+	inner_join(s5, by = c("series_id", "surface")) %>% 
+	inner_join(s4, by = c("series_id", "surface")) %>% 
+	inner_join(s3, by = c("series_id", "surface")) %>% 
+	inner_join(s2, by = c("series_id", "surface")) 
+
+x_pool_sub <- x_test_processed %>% inner_join(x_pool_sub, by = "series_id") %>% 
+	mutate(series_id = series_id * 1000000)
+
+
+```
+
