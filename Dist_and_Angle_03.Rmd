@@ -276,13 +276,15 @@ x_train_processed <- x_train_processed_from_file %>% select(-group_id)
 # ########################################################################################################
 x_train_processed <- x_train_processed %>% mutate(
 																									f1 = log(dist_mean_to_sd*omega_mean_to_sd),
-																									f2 = abs(atan(theta_mean_all/psi_mean_all)))
+																									f2 = log(dist_total*omega_total),
+																									f3 = abs(atan(theta_mean_all/psi_mean_all)))
 x_test_processed <- x_test_processed %>% mutate( 
 																									f1 = log(dist_mean_to_sd*omega_mean_to_sd),
-																									f2 = abs(atan(theta_mean_all/psi_mean_all)))
+																									f2 = log(dist_total*omega_total),
+																									f3 = abs(atan(theta_mean_all/psi_mean_all)))
 
 x_train_processed <- x_train_processed %>% select(series_id, surface,
-																									f1, f2, 
+																									f1, f2, f3,
 																									phi_mean_to_sd_all, 
 																									theta_mean_to_sd_all, 
 																									psi_mean_to_sd_all,
@@ -312,7 +314,7 @@ x_train_processed <- x_train_processed %>% select(series_id, surface,
 																									)
 
 x_test_processed <- x_test_processed  %>% select(series_id,
-																									f1, f2, 
+																									f1, f2, f3,
 																									phi_mean_to_sd_all, 
 																								 	theta_mean_to_sd_all, 
 																								 	psi_mean_to_sd_all,
