@@ -654,7 +654,7 @@ Qw will save each modeel on a file on hard-disk
 x_train_processed_ova <- x_train_processed  %>% slice(1:1000)
 
 # a prefix to save models on hdd
-model_prefix <- "model_03_fit_"
+model_prefix <- "model_06_fit_"
 
 # # partition data into train and test
 # test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
@@ -706,7 +706,12 @@ for(current_surface in surfaces$surface)
 		customRF$sort 			<- 	function(x) x[order(x[,1]),]
 		customRF$levels 		<- 	function(x) x$surface
 				
-		model_fit_current <- train(surface ~ ., data = x_train_for_train_ova_current, method=customRF, metric="ROC", tuneGrid=tunegrid, trControl=control)
+		model_fit_current <- train(surface ~ ., 
+															 data = x_train_for_train_ova_current, 
+															 method=customRF, 
+															 metric="ROC", 
+															 tuneGrid=tunegrid, 
+															 trControl=control)
 		###################################################################################################
 		
 		###################################################################################################
