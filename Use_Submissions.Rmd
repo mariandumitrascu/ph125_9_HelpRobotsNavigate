@@ -251,6 +251,7 @@ x_pool_sub <- s6 %>%
 	inner_join(s3, by = c("series_id", "surface")) %>% 
 	inner_join(s2, by = c("series_id", "surface")) 
 
+
 x_pool_sub <- x_test_processed %>% inner_join(x_pool_sub, by = "series_id") %>% 
 	mutate(series_id = series_id * 1000000)
 

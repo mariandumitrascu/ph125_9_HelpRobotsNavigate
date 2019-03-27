@@ -38,25 +38,20 @@ library(kableExtra)
 
 ## Load Data
 
-```{r}
+```{r include=FALSE}
 
 x_train <- read_csv("data/X_train.csv")
 y_train <- read_csv("data/y_train.csv")
 x_test <- read_csv("data/x_test.csv")
 
-```
-
-
-```{r data analysis}
 
 # join the labels with the training data set
-train_set <- x_train %>% left_join(y_train, by = "series_id")
-train_df <- as.data.frame(train_set)
-test_df <- as.data.frame(x_test)
+x_train <- x_train %>% left_join(y_train, by = "series_id")
+x_train <- as.data.frame(x_train)
+x_test <- as.data.frame(x_test)
 
-train_df <- mutate(train_df, surface = as.factor(surface)) %>% 
+x_train <- mutate(x_train, surface = as.factor(surface)) %>% 
 	select(-group_id)
-
 ```
 
 ```{r}
@@ -78,8 +73,8 @@ convert_quaternions_to_euler <- function(a_dataset){
 	a_dataset
 }
 
-train_df <- convert_quaternions_to_euler(train_df)
-test_df <- convert_quaternions_to_euler(test_df)
+x_train <- convert_quaternions_to_euler(x_train)
+x_test <- convert_quaternions_to_euler(x_test)
 
 
 ```
@@ -201,11 +196,11 @@ pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
 
 # pre-process train and test data sets
 tic("process train data")
-x_train_processed <- pre_process(train_df)
+x_train_processed <- pre_process(x_train)
 toc()
 
 tic("process test data")
-x_test_processed <- pre_process(test_df)
+x_test_processed <- pre_process(x_test)
 toc()
 
 # rejoin train data with the labels data set
@@ -237,9 +232,6 @@ x_train_processed <- x_train_processed # %>% slice(1:1000)
 
 ```{r}
 
-# remove series_id
-# x_train_processed <- x_train_processed %>% select(-series_id)
-
 # remove group_id
 x_train_processed <- x_train_processed %>% select(-group_id)
 
@@ -249,28 +241,32 @@ x_train_processed <- x_train_processed %>% select(-group_id)
 # x_train_processed <- x_train_processed %>% select(surface, phi_mean_all, theta_mean_all, psi_mean_all,   dist_total, dist_sd,    dist_mean,  omega_total,    psi_total,    dist_mean_to_sd,   omega_mean,     psi_mean, psi_sd,  psi_mean_to_sd_all,     omega_sd, theta_mean_to_sd_all,     dist_max,     theta_sd, phi_mean_to_sd_all)
 
 # used for last models
-# x_train_processed <- x_train_processed %>% select(series_id, surface, 
-# 																									phi_mean_all, theta_mean_all,
-# 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
-# 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
-# 																									dist_total, omega_total, theta_total, psi_total, 
-# 																									phi_sd, theta_sd, 
-# 																									dist_mean_to_sd, omega_mean_to_sd)
-# 
-# x_test_processed <- x_test_processed  %>% select(series_id, 
-# 																									phi_mean_all, theta_mean_all,
-# 																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
-# 																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
-# 																									dist_total, omega_total, theta_total, psi_total, 
-# 																									phi_sd, theta_sd, 
-# 																									dist_mean_to_sd, omega_mean_to_sd)
-# 																									
 
 x_train_processed <- x_train_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
 																									f2 = atan(theta_mean_all/psi_mean_all))
-
 x_test_processed <- x_test_processed %>% mutate(f1 = atan(dist_mean_to_sd/omega_mean_to_sd),
 																									f2 = atan(theta_mean_all/psi_mean_all))
+
+x_train_processed <- x_train_processed %>% select(series_id, surface,
+																									phi_mean_all, theta_mean_all,
+																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
+																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
+																									dist_total, omega_total, theta_total, psi_total,
+																									phi_sd, theta_sd,
+																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
+
+x_test_processed <- x_test_processed  %>% select(series_id,
+																									phi_mean_all, theta_mean_all,
+																									phi_mean_to_sd_all, theta_mean_to_sd_all, psi_mean_to_sd_all,
+																									phi_mean_to_sd, theta_mean_to_sd, psi_mean_to_sd,
+																									dist_total, omega_total, theta_total, psi_total,
+																									phi_sd, theta_sd,
+																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
+
+
+
+
+
 
 x_train_processed <- x_train_processed %>% select(series_id, surface,
 																									f1, f2)
@@ -278,28 +274,34 @@ x_train_processed <- x_train_processed %>% select(series_id, surface,
 x_test_processed <- x_test_processed %>% select(series_id, 
 																									f1, f2)
 
- # x_train_processed <- x_train_processed %>% select(-omega_max, -omega_sd, -omega_total, -omega_mean, -dist_mean, -dist_total, -dist_sd, -psi_sd, -theta_sd, -theta_total, -psi_total, -euler_mean_to_sd, -phi_min, -euler_sd, -psi_min, -phi_sd_all, -euler_max, -euler_total, -phi_total, -phi_mean)
+# ########################################################################################################
 
-# based on my intuition
-# x_train_processed <- x_train_processed %>% select(surface,
-# 																									dist_mean_to_sd,
-# 																									omega_mean_to_sd,
-# 																									euler_mean_to_sd,
-# 																									
-# 																									phi_mean_all, 
-# 																									theta_mean_all, 
-# 																									psi_mean_all)
+s6 <- read_csv("data/submission_06.csv")
+s5 <- read_csv("data/submission_05.csv")
+s4 <- read_csv("data/submission_04.csv")
+s3 <- read_csv("data/submission_03.csv")
+s2 <- read_csv("data/submission_RF_untuned0_02.csv")
 
-# ##########################
+x_pool_sub <- s6 %>% 
+	inner_join(s5, by = c("series_id", "surface")) %>% 
+	inner_join(s4, by = c("series_id", "surface")) %>% 
+	inner_join(s3, by = c("series_id", "surface")) %>% 
+	inner_join(s2, by = c("series_id", "surface")) 
 
 
+x_pool_sub <- x_test_processed %>% inner_join(x_pool_sub, by = "series_id") %>% 
+	mutate(series_id = series_id * 1000000)
 
-# ##########################
+x_pool_sub <- x_pool_sub %>% mutate(surface = as.factor(surface))
+
+x_train_processed <- bind_rows(x_train_processed, x_pool_sub)
+
+# ########################################################################################################
 # # use PCA
 # pca <- prcomp(select(x_train_processed, -surface))
 # summary(pca)
 # x_train_processed <- data.frame(pca$x[,1:3]) %>% mutate(surface = x_train_processed$surface)
-# ##########################
+# ########################################################################################################
 
 
 # partition data for training
@@ -479,10 +481,10 @@ Qw will save each modeel on a file on hard-disk
 
 ```{r one-vs-all}
 # get a small chunk for now
-x_train_processed_ova <- x_train_processed  %>% slice(1:1000)
+x_train_processed_ova <- x_train_processed  # %>% slice(1:1000)
 
 # a prefix to save models on hdd
-model_prefix <- "model_06_fit_"
+model_prefix <- "model_07_fit_"
 
 # # partition data into train and test
 # test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
