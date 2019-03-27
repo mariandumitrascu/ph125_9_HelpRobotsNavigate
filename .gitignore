@@ -8,3 +8,5 @@ models
 *.zip
 *.zip
 -DQWINMAC03
+-DQWINMAC03.Rhistory
+-DQWINMAC03.RData
