@@ -263,17 +263,6 @@ x_test_processed <- x_test_processed  %>% select(series_id,
 																									phi_sd, theta_sd,
 																									dist_mean_to_sd, omega_mean_to_sd, f1, f2)
 
-
-
-
-
-
-x_train_processed <- x_train_processed %>% select(series_id, surface,
-																									f1, f2)
-
-x_test_processed <- x_test_processed %>% select(series_id, 
-																									f1, f2)
-
 # ########################################################################################################
 
 s6 <- read_csv("data/submission_06.csv")
@@ -484,7 +473,7 @@ Qw will save each modeel on a file on hard-disk
 x_train_processed_ova <- x_train_processed  # %>% slice(1:1000)
 
 # a prefix to save models on hdd
-model_prefix <- "model_07_fit_"
+model_prefix <- "model_08_fit_"
 
 # # partition data into train and test
 # test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
