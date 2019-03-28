@@ -354,11 +354,11 @@ s4 <- read_csv("data/submission_04.csv")
 s3 <- read_csv("data/submission_03.csv")
 s2 <- read_csv("data/submission_RF_untuned0_02.csv")
 s10 <- read_csv("data/model_10_fit_submission.csv")
-s11 <- read_csv("data/model_11_fit_submission.csv")
+#s11 <- read_csv("data/model_11_fit_submission.csv")
 
 
 x_pool_sub <- s6 %>%
-	inner_join(s11, by = c("series_id", "surface")) %>% 
+	#inner_join(s11, by = c("series_id", "surface")) %>% 
 	inner_join(s10, by = c("series_id", "surface")) %>% 
 	inner_join(s8, by = c("series_id", "surface")) %>% 
 	inner_join(s6, by = c("series_id", "surface")) %>% 

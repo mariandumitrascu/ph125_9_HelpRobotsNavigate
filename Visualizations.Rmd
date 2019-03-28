@@ -16,6 +16,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # install.packages("RSpincalc")
 # devtools::install_github("collectivemedia/tictoc")
 # install.packages("kableExtra")
+# install.packages("plot3D")
 library(readr)
 library(tidyverse)
 library(ISLR)
@@ -26,6 +27,8 @@ library(randomForest)
 library(RSpincalc)
 library(tictoc)
 library(kableExtra)
+
+library(plot3D)
 ```
 
 
