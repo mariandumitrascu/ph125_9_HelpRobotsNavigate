@@ -209,6 +209,7 @@ x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")
 write_csv(x_train_processed, "data/x_train_processed.csv")
 write_csv(x_test_processed, "data/x_test_processed.csv")
 
+rm(x_train, x_test, y_train)
 rm(x_train_processed, x_test_processed)
 ```
 
@@ -238,6 +239,8 @@ x_test_processed <- x_test_processed_from_file
 
 # remove group_id
 x_train_processed <- x_train_processed_from_file %>% select(-group_id)
+
+rm(x_test_processed_from_file, x_train_processed_from_file)
 
 # ##########################
 # try diversee sets of features
@@ -283,68 +286,68 @@ x_test_processed <- x_test_processed %>% mutate(
 																									f2 = log(dist_total*omega_total),
 																									f3 = abs(atan(theta_mean_all/psi_mean_all)))
 
-x_train_processed <- x_train_processed %>% select(series_id, surface,
-																									f1, f2, f3,
-																									phi_mean_to_sd_all, 
-																									theta_mean_to_sd_all, 
-																									psi_mean_to_sd_all,
-																									phi_mean_to_sd, 
-																									theta_mean_to_sd, 
-																									psi_mean_to_sd,
-																								  theta_total, 
-																									psi_total, 
-																									phi_total,
-																									phi_sd, theta_sd, psi_sd,
-																									phi_mean_all, 
-																									theta_mean_all, 
-																									psi_mean_all,
-																									phi_mean,
-																									theta_mean,
-																									psi_mean,
-																								 	dist_mean_to_sd, 
-																									dist_mean,
-																									dist_sd,
-																									dist_total,
-																									dist_max,
-																									omega_mean_to_sd,
-																									omega_mean,
-																									omega_sd,
-																									omega_total,
-																									omega_max
-																									)
-
-x_test_processed <- x_test_processed  %>% select(series_id,
-																									f1, f2, f3,
-																									phi_mean_to_sd_all, 
-																								 	theta_mean_to_sd_all, 
-																								 	psi_mean_to_sd_all,
-																									phi_mean_to_sd, 
-																								  theta_mean_to_sd, 
-																								 	psi_mean_to_sd,
-																									theta_total, 
-																								 	psi_total, 
-																								 	phi_total,
-																									phi_sd, 
-																								 	theta_sd, 
-																								 	psi_sd,
-																								 	phi_mean_all,
-																								 	theta_mean_all, 
-																								 	psi_mean_all,
-																								 	phi_mean,
-																								 	theta_mean,
-																								 	psi_mean,
-																								 	dist_mean_to_sd,
-																								 	dist_mean,
-																								 	dist_sd,
-																								 	dist_total,
-																								 	dist_max,
-																								 	omega_mean_to_sd,
-																								 	omega_mean,
-																								 	omega_sd,
-																								 	omega_total,
-																								 	omega_max
-																								 	)
-
+# x_train_processed <- x_train_processed %>% select(series_id, surface,
+# 																									f1, f2, f3,
+# 																									phi_mean_to_sd_all, 
+# 																									theta_mean_to_sd_all, 
+# 																									psi_mean_to_sd_all,
+# 																									phi_mean_to_sd, 
+# 																									theta_mean_to_sd, 
+# 																									psi_mean_to_sd,
+# 																								  theta_total, 
+# 																									psi_total, 
+# 																									phi_total,
+# 																									phi_sd, theta_sd, psi_sd,
+# 																									phi_mean_all, 
+# 																									theta_mean_all, 
+# 																									psi_mean_all,
+# 																									phi_mean,
+# 																									theta_mean,
+# 																									psi_mean,
+# 																								 	dist_mean_to_sd, 
+# 																									dist_mean,
+# 																									dist_sd,
+# 																									dist_total,
+# 																									dist_max,
+# 																									omega_mean_to_sd,
+# 																									omega_mean,
+# 																									omega_sd,
+# 																									omega_total,
+# 																									omega_max
+# 																									)
+# 
+# x_test_processed <- x_test_processed  %>% select(series_id,
+# 																									f1, f2, f3,
+# 																									phi_mean_to_sd_all, 
+# 																								 	theta_mean_to_sd_all, 
+# 																								 	psi_mean_to_sd_all,
+# 																									phi_mean_to_sd, 
+# 																								  theta_mean_to_sd, 
+# 																								 	psi_mean_to_sd,
+# 																									theta_total, 
+# 																								 	psi_total, 
+# 																								 	phi_total,
+# 																									phi_sd, 
+# 																								 	theta_sd, 
+# 																								 	psi_sd,
+# 																								 	phi_mean_all,
+# 																								 	theta_mean_all, 
+# 																								 	psi_mean_all,
+# 																								 	phi_mean,
+# 																								 	theta_mean,
+# 																								 	psi_mean,
+# 																								 	dist_mean_to_sd,
+# 																								 	dist_mean,
+# 																								 	dist_sd,
+# 																								 	dist_total,
+# 																								 	dist_max,
+# 																								 	omega_mean_to_sd,
+# 																								 	omega_mean,
+# 																								 	omega_sd,
+# 																								 	omega_total,
+# 																								 	omega_max
+# 																								 	)
+# 
 # ########################################################################################################
 
 s8 <- read_csv("data/submission_08.csv")
@@ -373,7 +376,24 @@ x_pool_sub <- x_test_processed %>% inner_join(x_pool_sub, by = "series_id") %>%
 
 x_pool_sub <- x_pool_sub %>% mutate(surface = as.factor(surface))
 
-# x_train_processed <- bind_rows(x_train_processed, x_pool_sub)
+x_train_processed <- bind_rows(x_train_processed, x_pool_sub)
+
+
+
+
+# convert both test and train data to matrix in order to analyse featuree corelation
+x_train_matrix <- x_train_processed %>% select(-surface, -series_id) %>% as.matrix()
+x_test_matrix <- x_test_processed %>% select(-series_id) %>% as.matrix()
+
+# find features that are high correlated 
+names_to_removed_train <- findCorrelation(cor(x_train_matrix), cutoff = 0.9, names = TRUE, verbose = FALSE, exact=TRUE)
+names_to_remove_test <- findCorrelation(cor(x_test_matrix), cutoff = 0.9, names = TRUE, verbose = FALSE, exact=TRUE)
+
+# remove correlated features from both train and test sets
+x_train_processed <- x_train_processed %>% select(-names_to_remove_test) 
+x_test_processed <- x_test_processed %>% select(-names_to_remove_test) 
+
+rm(x_train_matrix, x_test_matrix, names_to_removed_train, names_to_remove_test)
 
 
 
@@ -448,9 +468,9 @@ conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
 conf_matrix$table %>% knitr::kable()
 
-importance <- importance(model_fit_rf$finalModel)
+importance <- importance(model_fit_RF_untuned)
 importance[order(importance[,1], decreasing = TRUE), ]
-varImpPlot(model_fit_rf$finalModel)
+varImpPlot(model_fit_RF_untuned)
 
 # model_fit_RF_untuned <- randomForest(surface ~ ., data = x_train_processed)
 # 
@@ -487,7 +507,7 @@ customRF$levels 		<- 	function(x) x$surface
 
 
 model_fit_rf <- train(surface ~ ., 
-											data = slice(select(x_train_for_train, -series_id), 1:500), 
+											data = slice(select(x_train_for_train, -series_id), 1:5000), 
 											#data = x_train_for_train, 
 											method=customRF, 
 											metric=metric, 
