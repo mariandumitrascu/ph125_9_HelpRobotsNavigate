@@ -16,6 +16,8 @@ knitr::opts_chunk$set(echo = TRUE)
 # install.packages("RSpincalc")
 # devtools::install_github("collectivemedia/tictoc")
 # install.packages("kableExtra")
+# install.packages("plot3D")
+install.packages("plotly")
 library(readr)
 library(tidyverse)
 library(ISLR)
@@ -26,6 +28,9 @@ library(randomForest)
 library(RSpincalc)
 library(tictoc)
 library(kableExtra)
+
+library(plot3D)
+library(plotly)
 ```
 
 
@@ -37,10 +42,19 @@ library(kableExtra)
 
 ```{r, fig.width=16, fig.height=9, fig.retina=4}
 
-x <- x_train_for_train %>% select(-surface) %>% as.matrix()
+x <- x_train_for_train %>% select(-surface, -series_id) %>% as.matrix()
 y <- x_train_for_train$surface
 
-findCorrelation(cor(x), names = TRUE)
+findCorrelation(cor(x), names = TRUE, verbose = TRUE)
+findLinearCombos(x)
+
+xx <- x_train_for_train %>% select(-surface, -series_id)
+names(xx)[19]
+names(xx)[20]
+names(xx)[21]
+names(xx)[25]
+names(xx)[30]
+
 
 #####
 # totals vs mean_to_sd
@@ -57,7 +71,6 @@ x_train_processed %>%  ggplot(aes(dist_total*omega_total,dist_mean_to_sd*omega_m
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
 
-
 x_train_processed %>%  ggplot(aes(euler_total, euler_mean_to_sd, fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
@@ -66,6 +79,9 @@ x_train_processed %>%  ggplot(aes(euler_total, euler_mean_to_sd, fill = surface)
 
 
 ```{r, fig.width=13, fig.height=10, fig.retina=4}
+x_train_processed %>% scatter3D(x_train_processed$f1, x_train_processed$f2, x_train_processed$f3, colvar = as.numeric(x_train_processed$surface)/10, col = NULL, add = FALSE)
+
+plot_ly(x=x_train_processed$f1, y=x_train_processed$f2, z=x_train_processed$f3, type="scatter3d", mode="markers", color=x_train_processed$surface)
 
 # #####################################################################################################
 # euler gyro angles
