@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # devtools::install_github("collectivemedia/tictoc")
 # install.packages("kableExtra")
 # install.packages("plot3D")
+# install.packages("plotly")
 library(readr)
 library(tidyverse)
 library(ISLR)
@@ -29,6 +30,7 @@ library(tictoc)
 library(kableExtra)
 
 library(plot3D)
+library(plotly)
 ```
 
 
