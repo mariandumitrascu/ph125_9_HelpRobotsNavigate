@@ -18,6 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 # install.packages("kableExtra")
 # install.packages("plot3D")
 # install.packages("plotly")
+install.packages("Rwin", dependencies = TRUE)
 library(readr)
 library(tidyverse)
 library(ISLR)
@@ -68,6 +69,28 @@ x_train_processed %>%  ggplot(aes(euler_total, euler_mean_to_sd, fill = surface)
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21)
 # euler_total is not relevant
+```
+
+
+```{r fig.width=13, fig.height=10, fig.retina=4}
+x_train_processed %>%  ggplot(aes(log(dist_mean^2), log(dist_surface), fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+x_train_processed %>%  ggplot(aes(log(omega_mean^2), log(omega_surface), fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(log(euler_mean^2), log(euler_surface), fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(log(dist_surface), log(omega_surface), fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
+
+x_train_processed %>%  ggplot(aes(dist_mean_x/dist_sd_x, omega_mean_x/omega_sd_x, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21)
 ```
 
 
