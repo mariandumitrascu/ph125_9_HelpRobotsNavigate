@@ -102,7 +102,29 @@ pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
 		theta_mean_to_sd_all = mean(theta)/sd(theta),
 		psi_mean_all = mean(psi),
 		psi_sd_all = sd(psi),
-		psi_mean_to_sd_all = mean(psi)/sd(psi)
+		psi_mean_to_sd_all = mean(psi)/sd(psi),
+		dist_area = (max(linear_acceleration_X) - min(linear_acceleration_X)) * (max(linear_acceleration_Y) - min(linear_acceleration_Y)) + 
+			(max(linear_acceleration_X) - min(linear_acceleration_X)) * (max(linear_acceleration_Z) - min(linear_acceleration_Z)) + 
+			(max(linear_acceleration_Y) - min(linear_acceleration_Y)) * (max(linear_acceleration_Z) - min(linear_acceleration_Z)),
+		omega_area = (max(angular_velocity_X) - min(angular_velocity_X)) * (max(angular_velocity_Y) - min(angular_velocity_Y)) +
+			(max(angular_velocity_X) - min(angular_velocity_X)) * (max(angular_velocity_Z) - min(angular_velocity_Z)) +
+			(max(angular_velocity_Y) - min(angular_velocity_Y)) * (max(angular_velocity_Z) - min(angular_velocity_Z)),
+		euler_area = (max(phi) - min(phi)) * (max(theta) - min(theta)) + 
+			(max(phi) - min(phi)) * (max(psi) - min(psi)) + 
+			(max(theta) - min(theta)) * (max(psi) - min(psi)),
+		dist_mean_x = mean(linear_acceleration_X),
+		dist_mean_y = mean(linear_acceleration_Y),
+		dist_mean_z = mean(linear_acceleration_Z),
+		omega_mean_x = mean(angular_velocity_X),
+		omega_mean_y = mean(angular_velocity_Y),
+		omega_mean_Z = mean(angular_velocity_Z),
+		dist_sd_x = sd(linear_acceleration_X),
+		dist_sd_y = sd(linear_acceleration_Y),
+		dist_sd_z = sd(linear_acceleration_Z),
+		omega_sd_x = sd(angular_velocity_X),
+		omega_sd_y = sd(angular_velocity_Y),
+		omega_sd_Z = sd(angular_velocity_Z)	
+		
 		) %>% 
 		slice(1:n_of_rows)
 	
@@ -188,6 +210,12 @@ pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
 	# add the summary computations to the data set of series
 	processed_data_df <- bind_cols(processed_data_df, tmp_df)
 
+	# more features
+	processed_data_df <- processed_data_df %>% mutate(
+		f1 = log(dist_mean_to_sd*omega_mean_to_sd),
+		f2 = log(dist_total*omega_total),
+		f3 = abs(atan(theta_mean_all/psi_mean_all)))		
+	
 	# return the proceessed data
 	processed_data_df
 }
@@ -245,18 +273,6 @@ x_train_processed <- x_train_processed_from_file %>% select(-group_id)
 
 rm(x_test_processed_from_file, x_train_processed_from_file)
 
-# used for models 9, 10, 11
-# ########################################################################################################
-x_train_processed <- x_train_processed %>% mutate(
-																									f1 = log(dist_mean_to_sd*omega_mean_to_sd),
-																									f2 = log(dist_total*omega_total),
-																									f3 = abs(atan(theta_mean_all/psi_mean_all)))
-x_test_processed <- x_test_processed %>% mutate( 
-																									f1 = log(dist_mean_to_sd*omega_mean_to_sd),
-																									f2 = log(dist_total*omega_total),
-																									f3 = abs(atan(theta_mean_all/psi_mean_all)))
-
-
 s8 <- read_csv("data/submission_08.csv")
 s6 <- read_csv("data/submission_06.csv")
 s5 <- read_csv("data/submission_05.csv")
@@ -265,7 +281,6 @@ s3 <- read_csv("data/submission_03.csv")
 s2 <- read_csv("data/submission_RF_untuned0_02.csv")
 s10 <- read_csv("data/model_10_fit_submission.csv")
 s11 <- read_csv("data/model_11_fit_submission.csv")
-
 
 x_pool_sub <- s6 %>%
 	inner_join(s11, by = c("series_id", "surface")) %>% 
@@ -293,8 +308,9 @@ x_train_matrix <- x_train_processed %>% select(-surface, -series_id) %>% as.matr
 x_test_matrix <- x_test_processed %>% select(-series_id) %>% as.matrix()
 
 # find features that are high correlated 
-names_to_removed_train <- findCorrelation(cor(x_train_matrix), cutoff = 0.9, names = TRUE, verbose = FALSE, exact=TRUE)
-names_to_remove_test <- findCorrelation(cor(x_test_matrix), cutoff = 0.9, names = TRUE, verbose = FALSE, exact=TRUE)
+# find linear dependencies and eliminate them
+# names_to_removed_train <- findCorrelation(cor(x_train_matrix), cutoff = 0.9, names = TRUE, verbose = FALSE, exact=TRUE)
+names_to_remove_test <- findCorrelation(cor(x_test_matrix), cutoff = 0.85, names = TRUE, verbose = FALSE, exact=TRUE)
 
 # remove correlated features from both train and test sets
 x_train_processed <- x_train_processed %>% select(-names_to_remove_test) 
@@ -303,33 +319,69 @@ x_test_processed <- x_test_processed %>% select(-names_to_remove_test)
 rm(x_train_matrix, x_test_matrix, names_to_removed_train, names_to_remove_test)
 rm(s2, s3, s4, s5, s6, s8, s10, s11, x_pool_sub)
 
-x_train_processed <- x_train_processed %>% select(-omega_max_to_min, -theta_min, -dist_max_to_min, -omega_mean_to_sd, -theta_sd_all)
-x_test_processed <- x_test_processed %>% select(-omega_max_to_min, -theta_min, -dist_max_to_min -omega_mean_to_sd, -theta_sd_all)
 # ########################################################################################################
-# # use PCA
-# pca <- prcomp(select(x_train_processed, -surface))
-# summary(pca)
-# x_train_processed <- data.frame(pca$x[,1:3]) %>% mutate(surface = x_train_processed$surface)
-# ########################################################################################################
+# pre-process the data, center and scale the values across all predictors
+pre_process <- x_train_processed %>% select(-series_id) %>% preProcess(method = c("center", "scale"))
+x_train_processed <- predict(pre_process, x_train_processed)
+x_test_processed <- predict(pre_process, x_test_processed)
+
+# x_train_processed <- x_train_processed %>% select(-omega_max_to_min, -theta_min, -dist_max_to_min)
+# x_test_processed <- x_test_processed %>% select(-omega_max_to_min, -theta_min, -dist_max_to_min)
 
 
-# partition data for training
+# ########################################################################################################
+# create Mahalanobis distance to each of the class centroids
+# see: https://topepo.github.io/caret/pre-processing.html#the-preprocess-function
+tmp <- x_train_processed %>%  
+	select(-series_id, -surface) %>% 
+	as.matrix()
+
+centroids <-	classDist(tmp, x_train_processed$surface, pca = TRUE, keep = 20)
+
+x_train_processed <- bind_cols(x_train_processed,as.data.frame(predict(centroids, x_train_processed)))
+x_test_processed <- bind_cols(x_test_processed, as.data.frame(predict(centroids, x_test_processed)))
+
+
+# x_train_processed <- bind_cols(select(x_train_processed, series_id, surface, f3, f2),
+# 															as.data.frame(predict(centroids, x_train_processed)))
+# x_test_processed <- bind_cols(select(x_test_processed, series_id, f3, f2), 
+# 															as.data.frame(predict(centroids, x_test_processed)))
+
+# ########################################################################################################
+# partition x_train_processed data for training and testing 
 test_index <- createDataPartition(y = x_train_processed$surface, times = 1, p = 0.5, list = FALSE)
 x_train_for_train <- x_train_processed[-test_index, ]
 x_train_for_test <- x_train_processed[test_index, ]
 
+#x_train_for_train_t <- minDiss()
+
 
 ```
+
 
 
 ```{r}
-tmp <- x_train_processed %>%  select(-series_id, -surface) %>% as.matrix()
-dist <- classDist(tmp , x_train_processed$surface)
+models <- c("naive_bayes",  "svmLinear", 
+            "gamboost",  "gamLoess", "qda", 
+            "knn", "kknn", "loclda", "gam",
+            "rf", "ranger",  "wsrf", "Rborist", 
+            "avNNet", "mlp", "monmlp",
+            "adaboost", "gbm",
+            "svmRadial", "svmRadialCost", "svmRadialSigma")
 
-x_train_processed %>% filter(surface == "hard_tiles")
-dim(tmp)
+
+
+fits <- lapply(models, function(model){
+  print(model)
+  train(surface ~., method=model, data = select(x_train_for_train, -series_id))
+  
+})
+
+names(fits) <- models
+
+
+
 ```
-
 
 
 ## KNN
@@ -374,7 +426,7 @@ confusionMatrix(predict(train_rpart, x_train_for_test), x_train_for_test$surface
 model_fit_RF_untuned <- randomForest(
 	surface ~ ., 
 	metric = "ROC", 
-	data = slice(select(x_train_for_train, -series_id), 1:5000)
+	data = slice(select(x_train_for_train, -series_id), 1:500)
 	)
 
 y_hat <- predict(model_fit_RF_untuned, select(x_train_for_test, -series_id))
@@ -398,13 +450,14 @@ varImpPlot(model_fit_RF_untuned)
 # x_test_processed_for_submission <- x_test_processed %>% select(series_id) %>% mutate(surface = y_hat)
 # write_csv(x_test_processed_for_submission, "data/submission_RF_untuned0_02.csv")
 
+rm(model_fit_RF_untuned)
 ```
 
 
 ## Random Forests Customized one-vs-one
 
 ```{r randomTrees, fig.height=9, fig.width = 16}
-control <- trainControl(method="repeatedcv", number=20, repeats=2, search="grid", classProbs = TRUE)
+control <- trainControl(method="repeatedcv", number=10, repeats=2, search="grid", classProbs = TRUE, sampling = "up")
 
 metric <- "Accuracy"
 
@@ -425,7 +478,7 @@ customRF$levels 		<- 	function(x) x$surface
 
 
 model_fit_rf <- train(surface ~ ., 
-											data = slice(select(x_train_for_train, -series_id), 1:5000), 
+											data = slice(select(x_train_for_train, -series_id), 1:500), 
 											#data = x_train_for_train, 
 											method=customRF, 
 											metric=metric, 
@@ -503,7 +556,7 @@ Qw will save each modeel on a file on hard-disk
 x_train_processed_ova <- x_train_processed   #%>% slice(1:1500)
 
 # a prefix to save models on hdd
-model_prefix <- "model_12_fit_"
+model_prefix <- "model_13_fit_"
 
 # # partition data into train and test
 # test_index <- createDataPartition(y = x_train_processed_ova$surface, times = 1, p = 0.5, list = FALSE)
