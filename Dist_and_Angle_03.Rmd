@@ -437,6 +437,12 @@ model_fit <- train(surface ~ ., data = x,
                  ## to evaluate:
                  tuneGrid = gbmGrid)
 
+###
+
+model_fit  <- train(surface ~., method = "C5.0", data = x)
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+conf_matrix$overall["Accuracy"]
 
 ```
 
