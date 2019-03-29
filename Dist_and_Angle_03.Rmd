@@ -347,14 +347,14 @@ x_test_processed <- predict(pre_process, x_test_processed)
 # ########################################################################################################
 # create Mahalanobis distance to each of the class centroids
 # see: https://topepo.github.io/caret/pre-processing.html#the-preprocess-function
-tmp <- x_train_processed %>%  
-	select(-series_id, -surface) %>% 
-	as.matrix()
-
-centroids <-	classDist(tmp, x_train_processed$surface, pca = TRUE, keep = 20)
-
-x_train_processed <- bind_cols(x_train_processed,as.data.frame(predict(centroids, x_train_processed)))
-x_test_processed <- bind_cols(x_test_processed, as.data.frame(predict(centroids, x_test_processed)))
+# tmp <- x_train_processed %>%
+# 	select(-series_id, -surface) %>%
+# 	as.matrix()
+# 
+# centroids <-	classDist(tmp, x_train_processed$surface, pca = TRUE, keep = 20)
+# 
+# x_train_processed <- bind_cols(x_train_processed,as.data.frame(predict(centroids, x_train_processed)))
+# x_test_processed <- bind_cols(x_test_processed, as.data.frame(predict(centroids, x_test_processed)))
 
 
 # x_train_processed <- bind_cols(select(x_train_processed, series_id, surface, f3, f2),
@@ -420,6 +420,23 @@ model_fit  <- train(surface ~., method = "monmlp", data = x)
 y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
 conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
+
+
+
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
+gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
+                        n.trees = (1:30)*50, 
+                        shrinkage = 0.1,
+                        n.minobsinnode = 20)
+nrow(gbmGrid)
+model_fit <- train(surface ~ ., data = x, 
+                 method = "gbm", 
+                 trControl = fitControl, 
+                 verbose = FALSE, 
+                 ## Now specify the exact models 
+                 ## to evaluate:
+                 tuneGrid = gbmGrid)
+
 
 ```
 
