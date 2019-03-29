@@ -18,12 +18,15 @@ gyros, accelerometer and magnetometer sensor
 ## Load Libraries
 
 ```{r data load, message=FALSE, warning=FALSE}
+options(repos="https://CRAN.R-project.org")
 # install.packages("ISLR")
 # install.packages("orientlib")
 # install.packages("RSpincalc")
 # devtools::install_github("collectivemedia/tictoc")
 # install.packages("kableExtra")
 # install.packages("doParallel")
+# install.packages("randomForest", dependencies = TRUE)
+install.packages("rf")
 library(readr)
 library(tidyverse)
 library(ISLR)
@@ -36,10 +39,20 @@ library(tictoc)
 library(kableExtra)
 
 library(doParallel)
+library(foreach)
+
 
 ```
 
 ## Load Data
+
+```{r include=FALSE}
+
+# cl <- makePSOCKcluster(10)
+# registerDoParallel(cl)
+```
+
+
 
 ```{r include=FALSE}
 
@@ -457,6 +470,7 @@ rm(model_fit_RF_untuned)
 ## Random Forests Customized one-vs-one
 
 ```{r randomTrees, fig.height=9, fig.width = 16}
+
 control <- trainControl(method="repeatedcv", number=10, repeats=2, search="grid", classProbs = TRUE, sampling = "up")
 
 metric <- "Accuracy"
@@ -467,7 +481,7 @@ tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 200, 500, 1000, 1500, 2000))
 
 # tunegrid <- expand.grid(.mtry=c(1:10))
 
-customRF 						<- 	list(type = "Classification", library = "randomForest", loop = NULL)
+customRF 						<- 	list(type = "Classification", library = "rf", loop = NULL)
 customRF$parameters <- 	data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
 customRF$grid 			<- 	function(x, y, len = NULL, search = "grid") {}
 customRF$fit 				<- 	function(x, y, wts, param, lev, last, weights, classProbs, ...) randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...)
@@ -501,24 +515,24 @@ conf_matrix$table
 
 # cl <- makePSOCKcluster(10)
 # registerDoParallel(cl)
-control <- trainControl(method="repeatedcv", number=20, repeats=2, search="grid", classProbs = TRUE, sampling = "up")
-
-model_fit_rf <- train(surface ~ ., 
-											data = slice(select(x_train_processed, -series_id), 1:5000), 
-											#data = x_train_for_train, 
-											method=customRF, 
-											metric=metric, 
-											tuneGrid=tunegrid, 
-											trControl=control
-											)
-
-# stopCluster(cl) 
-
-# predict
-y_hat <- predict(model_fit_rf$finalModel, select(x_test_processed, -series_id))
-
-x_test_processed_for_submission <- x_test_processed %>% select(series_id) %>% mutate(surface = y_hat)
-write_csv(x_test_processed_for_submission, "data/submission_customRF_one_vs_all_03.csv")
+# control <- trainControl(method="repeatedcv", number=20, repeats=2, search="grid", classProbs = TRUE, sampling = "up")
+# 
+# model_fit_rf <- train(surface ~ ., 
+# 											data = slice(select(x_train_processed, -series_id), 1:5000), 
+# 											#data = x_train_for_train, 
+# 											method=customRF, 
+# 											metric=metric, 
+# 											tuneGrid=tunegrid, 
+# 											trControl=control
+# 											)
+# 
+# # stopCluster(cl) 
+# 
+# # predict
+# y_hat <- predict(model_fit_rf$finalModel, select(x_test_processed, -series_id))
+# 
+# x_test_processed_for_submission <- x_test_processed %>% select(series_id) %>% mutate(surface = y_hat)
+# write_csv(x_test_processed_for_submission, "data/submission_customRF_one_vs_all_03.csv")
 ```
 
 
@@ -687,7 +701,7 @@ results_voting <- data.frame(
 # surfaces <- surfaces %>% filter(surface == "hard_tiles")
 # surfaces <- surfaces %>% filter(surface == "concrete")
 
-for(current_surface in surfaces$surface){
+foreach(current_surface = surfaces$surface) %dopar% {
 	
 	# prepare the test dataset: we keep current surfacee name, and we rename all other surfaces to "the_rest"
 	# we have now a binary clasification.
@@ -808,5 +822,9 @@ file_name <- paste("data/",model_prefix, "submission.csv", sep = "")
 write_csv(submission, file_name)
 
 
+```
+
+```{r}
+# stopCluster(cl)
 ```
 
