@@ -24,9 +24,9 @@ options(repos="https://CRAN.R-project.org")
 # install.packages("RSpincalc")
 # devtools::install_github("collectivemedia/tictoc")
 # install.packages("kableExtra")
-# install.packages("doParallel")
+# install.packages("doParallel", dependencies = TRUE)
 # install.packages("randomForest", dependencies = TRUE)
-install.packages("rf")
+# install.packages("rf")
 library(readr)
 library(tidyverse)
 library(ISLR)
@@ -40,6 +40,8 @@ library(kableExtra)
 
 library(doParallel)
 library(foreach)
+
+library(nnet)
 
 
 ```
@@ -277,7 +279,7 @@ x_train_processed_from_file <- x_train_processed_from_file # %>% slice(1:1000)
 
 ## Select Features We Want and Partition Data
 
-```{r}
+```{r include=FALSE}
 
 x_test_processed <- x_test_processed_from_file
 
@@ -382,17 +384,42 @@ models <- c("naive_bayes",  "svmLinear",
             "adaboost", "gbm",
             "svmRadial", "svmRadialCost", "svmRadialSigma")
 
+models <- c(
+	"avNNet",	# Model Averaged Neural Network
+	"monmlp"	# Monotone Multi-Layer Perceptron Neural Network
+	)
 
+x <- x_train_for_train %>% select(-series_id) # %>% slice(1:500)
 
-fits <- lapply(models, function(model){
+# train data for each model and store in model_fits
+model_fits <- lapply(models, function(model){
   print(model)
-  train(surface ~., method=model, data = select(x_train_for_train, -series_id))
+  train(surface ~., method = model, data = x)
   
 })
 
-names(fits) <- models
+# set a column for each model
+names(model_fits) <- models
 
+# predict for each model generated and store results in model_predictions
+model_predictions <- sapply(model_fits, function(model){
+  
+	y_hat <- predict(model, select(x_train_for_test, -series_id))
+	conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+	conf_matrix$overall["Accuracy"]
+  
+})
 
+control <- trainControl(size = 5, bag = TRUE)
+model_fit  <- train(surface ~., method = "avNNet", data = x, trControl=control)
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+conf_matrix$overall["Accuracy"]
+
+model_fit  <- train(surface ~., method = "monmlp", data = x)
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+conf_matrix$overall["Accuracy"]
 
 ```
 

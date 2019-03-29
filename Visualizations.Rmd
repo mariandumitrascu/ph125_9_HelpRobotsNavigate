@@ -32,6 +32,17 @@ library(kableExtra)
 
 library(plot3D)
 library(plotly)
+
+# install.packages("brnn", dependencies = TRUE)
+library(brnn)			# Bayesian Regularized Neural Networks
+
+library(nnet)			# Model Averaged Neural Network
+
+# install.packages("monmlp", dependencies = TRUE)
+library(monmlp)  	# Monotone Multi-Layer Perceptron Neural Network
+
+# install.packages("RSNNS", dependencies = TRUE)
+library(RSNNS)			# Multilayer Perceptron
 ```
 
 
