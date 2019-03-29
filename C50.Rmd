@@ -1,0 +1,89 @@
+---
+title: "Surface Detection by Robot Movements"
+author: "Marian Dumitrascu"
+date: "March 19, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Surface Detection by Robot Movements
+
+
+## Introduction
+
+gyros, accelerometer and magnetometer sensor
+
+## Load Libraries
+
+```{r data load, message=FALSE, warning=FALSE}
+options(repos="https://CRAN.R-project.org")
+# install.packages("ISLR")
+# install.packages("orientlib")
+# install.packages("RSpincalc")
+# devtools::install_github("collectivemedia/tictoc")
+# install.packages("kableExtra")
+# install.packages("doParallel", dependencies = TRUE)
+# install.packages("randomForest", dependencies = TRUE)
+# install.packages("rf")
+library(readr)
+library(tidyverse)
+library(ISLR)
+library(caret)
+library(orientlib)
+library(matrixStats)
+library(randomForest)
+library(RSpincalc)
+library(tictoc)
+library(kableExtra)
+
+library(doParallel)
+library(foreach)
+
+library(nnet)
+
+library(mlbench)
+
+```
+
+
+
+
+
+
+```{r}
+
+fitControl <- trainControl(method = "repeatedcv",
+  number = 10,
+  repeats = 10, 
+  returnResamp="all")
+
+tmp_data <- x_train_for_train # %>% slice(1:500)
+x_c5 <- tmp_data %>% select(-series_id, -surface) 
+y_c5 <- tmp_data$surface 
+rm(tmp_data)
+
+grid <- expand.grid( .winnow = c(TRUE), .trials=c(10,15,20, 25, 30, 35), .model="tree" )
+
+model_fit <- train(
+										x=x_c5,
+										y=y_c5,
+										tuneGrid=grid,
+										trControl=fitControl,
+										method="C5.0",
+										verbose=FALSE)
+
+model_fit
+
+# visualize the resample distributions
+xyplot(model_fit,type = c("g", "p", "smooth"))
+
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+conf_matrix$overall["Accuracy"]
+
+rm(x_c5, y_c5)
+
+```
+

@@ -43,6 +43,7 @@ library(foreach)
 
 library(nnet)
 
+library(mlbench)
 
 ```
 
@@ -443,6 +444,12 @@ model_fit  <- train(surface ~., method = "C5.0", data = x)
 y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
 conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
+
+# predict
+y_hat <- predict(model_fit, select(x_test_processed, -series_id))
+
+x_test_processed_for_submission <- x_test_processed %>% select(series_id) %>% mutate(surface = y_hat)
+write_csv(x_test_processed_for_submission, "data/submission_C50_02.csv")
 
 ```
 
