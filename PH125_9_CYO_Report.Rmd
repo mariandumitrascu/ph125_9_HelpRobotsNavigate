@@ -60,7 +60,7 @@ Input data from Kaggle consists in 4 files:
 
 	+ *series_id*: ID number for the measurement series.
 	+ *group_id*: ID number for all of the measurements taken in a recording session. Provided for the training set only, to enable more cross validation strategies.
-	+ *surface*: the target for this competition.
+	+ *surface*: lables or classes of the training data. this is the element that need to be predicted
 
 * *sample_submission.csv* - a sample submission file in the correct format.
 
@@ -101,26 +101,140 @@ library(RSpincalc)
 library(tictoc)
 
 ```
-```{r load data, include=FALSE}
-# https://s3.amazonaws.com/terraform-bucket-dq001/X_test.csv
-# https://s3.amazonaws.com/terraform-bucket-dq001/y_train.csv
-# https://s3.amazonaws.com/terraform-bucket-dq001/y_train.csv
+
+
+```{r load data, include=FALSE, cache=TRUE}
 
 # load X_train.csv and y_train.csv 
-x_train <- read_csv("https://s3.amazonaws.com/terraform-bucket-dq001/X_train.csv", col_names = TRUE)
-y_train <- read_csv("https://s3.amazonaws.com/terraform-bucket-dq001/y_train.csv", col_names = TRUE)
+# x_train <- read_csv("https://s3.amazonaws.com/terraform-bucket-dq001/X_train.csv", col_names = TRUE)
+# y_train <- read_csv("https://s3.amazonaws.com/terraform-bucket-dq001/y_train.csv", col_names = TRUE)
+# x_test <- read_csv("https://s3.amazonaws.com/terraform-bucket-dq001/X_test.csv", col_names = TRUE)
+
+x_train <- read_csv("data/X_train.csv")
+y_train <- read_csv("data/y_train.csv")
+x_test <- read_csv("data/x_test.csv")
 
 # then join them
-x_train <- x_train %>% left_join(y_train, by = "series_id")
+x_train <- x_train %>% inner_join(y_train, by = "series_id")
+# convert surface to factor
+x_train <- mutate(x_train, surface = as.factor(surface))
 
-# remove group_id column
-x_train <- mutate(x_train, surface = as.factor(surface)) %>% 
-	select(-group_id)
+nicetable <- head(x_train, 5) %>% knitr::kable()
+```
+Here is quick look at the first 5 rows of the training data: `r nicetable`
+
+## Data Distribution
+
+```{r include=FALSE}
+dist <- x_train %>% group_by(surface) %>% 
+	summarize(measurements = n_distinct(series_id))
+
+nicetable <- dist %>% knitr::kable()
+
+```
+Here is a distributon of measurements by surface in the training set: `r nicetable`
+
+Angular velocity is produced by a magnetostatic sensor, it indicates the angular speed the robot is movig in reference with earth orientation. Here is the distribution of angular velocity by surface:
+
+```{r warning=FALSE}
+options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
+
+x_train %>%
+    gather(key = "feature", value = "value", 4:13 ) %>%
+    filter(feature %in% c('angular_velocity_X', 
+    											'angular_velocity_Y' ,
+    											'angular_velocity_Z')) %>%  
+    ggplot(aes(x = value, fill=surface)) + 
+    geom_density() +
+    facet_grid(surface ~ feature) + 
+    xlim(-0.5, 0.5)
+```
+Linear acceleration is produced by an inertial sensor. We can approximate this later with linear distacne if we consider the the unit of time to be 1. Here is the distribution of linear acceleration by surface:
+
+```{r warning=FALSE}
+options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
+
+x_train %>%
+    gather(key = "feature", value = "value", 4:13 ) %>%
+    filter(feature %in% c('linear_acceleration_X' ,
+    											'linear_acceleration_Y', 
+    											'linear_acceleration_Z')) %>%  
+    ggplot(aes(x = value, fill=surface)) + 
+    geom_density() +
+    facet_grid(surface ~ feature) + 
+    xlim(-15, 5)
+
+```
+We can observe noticeable differences in distribution of these variables by surface. 
+
+To do the same for orientation we'll need to convert quaternion values to euler angles which are more intuitive and easier to interpret. Euler angles provide a way to represent the 3D orientation of an object using a combination of three rotations about different axes: roll (*phi*), pitch (*theta*) and yaw (*psi*)
+
+```{r fig.height=2, fig.width=3, message=FALSE, warning=FALSE, include=FALSE, cache=TRUE}
+download.file(url = "http://www.chrobotics.com/wp-content/uploads/2012/11/Inertial-Frame-1024x655.png",
+          destfile = "image_euler_angles.png",
+          mode = 'wb')
+# knitr::include_graphics(path = "image_euler_angles.png")
+```
+
+![Euler Angles](image_euler_angles.png)
+
+This data comes from a gyroscop sensor, it idicates the orientation of the robot. I noted euler anles with: *phi*, *theta* and *psi.* Although we dont know the order of them in our case, they have the following meaning:
+ 
+I used *Q2EA* function in *orientlib* package.(See: https://www.rdocumentation.org/packages/orientlib/versions/0.10.3)
+
+```{r quaternions to euler, warning=FALSE}
+
+# define a function to convert quaternion values to euler angles. 
+convert_quaternions_to_euler <- function(a_dataset){
+	
+	# use Q2EA from RSpincalc to convert quaternions to euler angles
+	Q <- a_dataset %>% select(orientation_X, 
+														orientation_Y, 
+														orientation_Z, 
+														orientation_W) %>% 
+		as.matrix()
+	
+	euler_matrix <- Q2EA(Q, EulerOrder='xyz', 
+											 tol = 10 * .Machine$double.eps, 
+											 ichk = FALSE, 
+											 ignoreAllChk = FALSE)
+
+	# add the new columns to the dataset
+	a_dataset <- a_dataset %>% mutate(phi = euler_matrix[,1],
+																		theta = euler_matrix[,2], 
+																		psi = euler_matrix[,3])
+	
+	# remove quaternion columns
+	a_dataset <- a_dataset %>% select(-orientation_X, 
+																		-orientation_Y,  
+																		-orientation_Z, 
+																		-orientation_W)
+	
+	# return the new dataset
+	a_dataset
+}
+
+x_train <- convert_quaternions_to_euler(x_train)
+x_test <- convert_quaternions_to_euler(x_test)
 ```
 
 
+```{r warning=FALSE}
+options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
 
-## Data Distribution
+x_train %>%
+    gather(key = "feature", value = "value", phi, theta, psi) %>%
+    filter(feature %in% c('phi', 
+    											'theta' ,
+    											'psi')) %>%  
+    ggplot(aes(x = value, fill=surface)) + 
+    geom_density() +
+    facet_grid(surface ~ feature) + 
+	xlim(-0.5, 0.5) +
+	ylim(0, 0.5)
+```
+We can see distinct patterns here.
+
 
 # Data Pre-Processing
 
@@ -141,14 +255,16 @@ One of the most important outcome of this prroject is that I learned a few thing
 
 # Reference
 
-1. Q2EA: Convert from rotation Quaternions to Euler Angles. Q2EA converts from Quaternions (Q) to Euler Angles (EA) based on D. M. Henderson (1977). Q2EA.Xiao is the algorithm by J. Xiao (2013) for the Princeton Vision Toolkit. https://rdrr.io/cran/RSpincalc/man/Q2EA.html
+1. Applied Predictive Modeling - Max Kuhn, Kjell Johnson
 
-2. Understanding Quaternions. http://www.chrobotics.com/library/understanding-quaternions
+2. Q2EA: Convert from rotation Quaternions to Euler Angles. Q2EA converts from Quaternions (Q) to Euler Angles (EA) based on D. M. Henderson (1977). Q2EA.Xiao is the algorithm by J. Xiao (2013) for the Princeton Vision Toolkit. https://rdrr.io/cran/RSpincalc/man/Q2EA.html
 
-3. Understanding Euler Angles. http://www.chrobotics.com/library/understanding-euler-angles
+3. Understanding Quaternions. http://www.chrobotics.com/library/understanding-quaternions
 
-4. Tune Machine Learning Algorithms in R (random forest case study) by Jason Brownlee. https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
+4. Understanding Euler Angles. http://www.chrobotics.com/library/understanding-euler-angles
 
-5. Classification with more than two classes, from Introduction to Information Retrieval, Christopher D. Manning, Prabhakar Raghavan and Hinrich Schütze,, Cambridge University Press 2008  https://nlp.stanford.edu/IR-book/html/htmledition/classification-with-more-than-two-classes-1.html
+5. Tune Machine Learning Algorithms in R (random forest case study) by Jason Brownlee. https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
 
-http://www.starlino.com/imu_guide.html
+6. Classification with more than two classes, from Introduction to Information Retrieval, Christopher D. Manning, Prabhakar Raghavan and Hinrich Schütze,, Cambridge University Press 2008  https://nlp.stanford.edu/IR-book/html/htmledition/classification-with-more-than-two-classes-1.html
+
+7. A Guide To using IMU (Accelerometer and Gyroscope Devices) in Embedded Applications - http://www.starlino.com/imu_guide.html
