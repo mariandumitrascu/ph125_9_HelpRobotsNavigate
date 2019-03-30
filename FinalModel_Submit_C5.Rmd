@@ -1,0 +1,138 @@
+---
+title: "Surface Detection by Robot Movements"
+author: "Marian Dumitrascu"
+date: "March 19, 2019"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Surface Detection by Robot Movements
+
+
+
+## Create Models for One vs All Scenario
+
+Here we will perform a binary classification for each of the class.
+We will keep current surface and rename the rest of the surfaces to "the_rest".
+Qw will save each modeel on a file on hard-disk
+
+```{r one-vs-all}
+
+x_train_for_train_ova <- x_train_processed
+
+# a prefix to save models on hdd
+model_prefix <- "model_13_fit_final_"
+
+# get surfaces in a data frame, so we can loop over
+surfaces <- x_train_for_train_ova %>% group_by(surface) %>% 
+	summarize(n = n()) %>% 
+	mutate(surface = as.character(surface)) %>% 
+	# filter(surface == "hard_tiles") %>% 
+	arrange(n)
+
+for(current_surface in surfaces$surface)
+{
+	
+		# do training of full train data
+		x_train_for_train_ova_current <- x_train_for_train_ova %>% 
+			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
+			mutate(surface = as.factor(surface))
+
+		###################################################################################################
+		# custom randomForest
+		# 
+		mtry <- sqrt(ncol(x_train_for_train_ova_current) - 1)
+		tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 300, 400, 500, 1000, 1500, 2000))
+		control <- trainControl(method="repeatedcv", 
+														number=20, 
+														repeats=2, 
+														search="grid", 
+														classProbs = TRUE, 
+														summaryFunction = twoClassSummary,
+														sampling = "up")
+		customRF 						<- 	list(type = "Classification", library = "randomForest", loop = NULL)
+		customRF$parameters <- 	data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
+		customRF$grid 			<- 	function(x, y, len = NULL, search = "grid") {}
+		customRF$fit 				<- 	function(x, y, wts, param, lev, last, weights, classProbs, ...) randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...)
+		customRF$predict 		<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL) predict(modelFit, newdata)
+		customRF$prob 			<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL)	predict(modelFit, newdata, type = "prob")
+		customRF$sort 			<- 	function(x) x[order(x[,1]),]
+		customRF$levels 		<- 	function(x) x$surface
+				
+		model_fit_current <- train(surface ~ ., 
+															 data = select(x_train_for_train_ova_current, -series_id), 
+															 method=customRF, 
+															 metric="ROC", 
+															 tuneGrid=tunegrid, 
+															 trControl=control)
+		###################################################################################################
+		
+		model_name <- paste(model_prefix, current_surface, sep = "")
+		file <- paste("models/",  model_name, ".rds", sep = "")
+		write_rds(model_fit_current, file)
+}
+
+
+```
+
+
+## Evaluate Test Dataset and Submit
+
+```{r}
+
+# get surfaces in a data frame, so we can loop over
+surfaces <- x_train_for_train_ova %>% group_by(surface) %>% 
+	summarize(n = n()) %>% 
+	mutate(surface = as.character(surface)) %>% 
+	arrange(n)
+
+# create a data frame the will store probabilities for each model
+# we'll use this for voting
+# the model with highes prediction will get the vote
+results_voting <- data.frame(
+	series_id = x_test_processed$series_id)
+
+
+for(current_surface in surfaces$surface){
+	
+	# get the model from a file
+	model_name <- paste(model_prefix, current_surface, sep = "")
+	model_fit_current <- readRDS(paste("models/", model_name, ".rds", sep = ""))
+	
+	# get y_hat and y_hat_prob
+	y_hat <- predict(
+							model_fit_current, 
+							select(x_test_processed, -series_id), 
+							type = "raw")
+	y_hat_prob <- predict(
+							model_fit_current, 
+							select(x_test_processed, -series_id), 
+							type = "prob")
+
+	# store the probability of curent model for current surface in a column named by current surface
+	results_voting <- results_voting %>% mutate(last_result_prob = y_hat_prob[,current_surface])
+	names(results_voting)[ncol(results_voting)] <- current_surface # the column name is current surface
+	
+}
+
+# results_voting
+results_voting <- results_voting %>%  mutate(surface = rep("", nrow(results_voting)))
+
+for (i in 1:nrow(results_voting)) {
+		results_voting[i, "surface"] <- names(which.max(select(results_voting[i,], -series_id, -surface)))
+}
+
+results_voting <- results_voting %>% mutate(surface = as.factor(surface))
+
+# create the submission data
+submission <- results_voting %>% select(series_id, surface)
+
+# save the file on the file system
+file_name <- paste("data/",model_prefix, "submission.csv", sep = "")
+write_csv(submission, file_name)
+
+
+```
+
