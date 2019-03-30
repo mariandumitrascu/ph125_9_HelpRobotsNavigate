@@ -422,8 +422,9 @@ y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
 conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
 
-#####vgmb
-x <- x_train_for_train %>% select(-series_id, -group_id) # %>% slice(1:500)
+##### 
+# gmb
+x <- x_train_for_train %>% select(-series_id, -group_id) %>% slice(1:500)
 
 fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
 gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
@@ -438,6 +439,10 @@ model_fit <- train(surface ~ ., data = x,
                  ## Now specify the exact models 
                  ## to evaluate:
                  tuneGrid = gbmGrid)
+
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+conf_matrix$overall["Accuracy"]
 
 ###
 
