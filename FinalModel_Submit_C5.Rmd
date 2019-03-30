@@ -45,30 +45,54 @@ for(current_surface in surfaces$surface)
 		###################################################################################################
 		# custom randomForest
 		# 
-		mtry <- sqrt(ncol(x_train_for_train_ova_current) - 1)
-		tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 300, 400, 500, 1000, 1500, 2000))
-		control <- trainControl(method="repeatedcv", 
-														number=20, 
-														repeats=2, 
-														search="grid", 
-														classProbs = TRUE, 
-														summaryFunction = twoClassSummary,
-														sampling = "up")
-		customRF 						<- 	list(type = "Classification", library = "randomForest", loop = NULL)
-		customRF$parameters <- 	data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
-		customRF$grid 			<- 	function(x, y, len = NULL, search = "grid") {}
-		customRF$fit 				<- 	function(x, y, wts, param, lev, last, weights, classProbs, ...) randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...)
-		customRF$predict 		<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL) predict(modelFit, newdata)
-		customRF$prob 			<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL)	predict(modelFit, newdata, type = "prob")
-		customRF$sort 			<- 	function(x) x[order(x[,1]),]
-		customRF$levels 		<- 	function(x) x$surface
-				
-		model_fit_current <- train(surface ~ ., 
-															 data = select(x_train_for_train_ova_current, -series_id), 
-															 method=customRF, 
-															 metric="ROC", 
-															 tuneGrid=tunegrid, 
-															 trControl=control)
+		# mtry <- sqrt(ncol(x_train_for_train_ova_current) - 1)
+		# tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 300, 400, 500, 1000, 1500, 2000))
+		# control <- trainControl(method="repeatedcv", 
+		# 												number=20, 
+		# 												repeats=2, 
+		# 												search="grid", 
+		# 												classProbs = TRUE, 
+		# 												summaryFunction = twoClassSummary,
+		# 												sampling = "up")
+		# customRF 						<- 	list(type = "Classification", library = "randomForest", loop = NULL)
+		# customRF$parameters <- 	data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
+		# customRF$grid 			<- 	function(x, y, len = NULL, search = "grid") {}
+		# customRF$fit 				<- 	function(x, y, wts, param, lev, last, weights, classProbs, ...) randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...)
+		# customRF$predict 		<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL) predict(modelFit, newdata)
+		# customRF$prob 			<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL)	predict(modelFit, newdata, type = "prob")
+		# customRF$sort 			<- 	function(x) x[order(x[,1]),]
+		# customRF$levels 		<- 	function(x) x$surface
+		# 		
+		# model_fit_current <- train(surface ~ ., 
+		# 													 data = select(x_train_for_train_ova_current, -series_id), 
+		# 													 method=customRF, 
+		# 													 metric="ROC", 
+		# 													 tuneGrid=tunegrid, 
+		# 													 trControl=control)
+		###################################################################################################
+		# C5
+		fitControl <- trainControl(method = "repeatedcv",
+								  number = 10,
+								  repeats = 10, 
+								  summaryFunction = twoClassSummary,
+								  classProbs = TRUE, 
+								  returnResamp="all")
+
+		tmp_data <- x_train_for_train_ova_current
+		x_c5 <- tmp_data %>% select(-series_id, -surface) 
+		y_c5 <- tmp_data$surface 
+		rm(tmp_data)
+		
+		grid <- expand.grid( .winnow = c(TRUE), .trials=c(10,15,20, 25, 30, 35), .model="tree" )
+		
+		model_fit_current <- train(
+									x=x_c5,
+									y=y_c5,
+									tuneGrid=grid,
+									trControl=fitControl,
+									method="C5.0",
+									verbose=FALSE)
+		
 		###################################################################################################
 		
 		model_name <- paste(model_prefix, current_surface, sep = "")

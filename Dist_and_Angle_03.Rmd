@@ -69,8 +69,8 @@ x_train <- x_train %>% left_join(y_train, by = "series_id")
 x_train <- as.data.frame(x_train)
 x_test <- as.data.frame(x_test)
 
-x_train <- mutate(x_train, surface = as.factor(surface)) %>% 
-	select(-group_id)
+# x_train <- mutate(x_train, surface = as.factor(surface)) %>% 
+# 	select(-group_id)
 ```
 
 ```{r}
@@ -285,9 +285,9 @@ x_train_processed_from_file <- x_train_processed_from_file # %>% slice(1:1000)
 x_test_processed <- x_test_processed_from_file
 
 # remove group_id
-x_train_processed <- x_train_processed_from_file %>% select(-group_id)
+x_train_processed <- x_train_processed_from_file # %>% select(-group_id)
 
-rm(x_test_processed_from_file, x_train_processed_from_file)
+# rm(x_test_processed_from_file, x_train_processed_from_file)
 
 s8 <- read_csv("data/submission_08.csv")
 s6 <- read_csv("data/submission_06.csv")
@@ -314,7 +314,7 @@ x_pool_sub <- x_test_processed %>% inner_join(x_pool_sub, by = "series_id") %>%
 
 x_pool_sub <- x_pool_sub %>% mutate(surface = as.factor(surface))
 
-x_train_processed <- bind_rows(x_train_processed, x_pool_sub)
+# x_train_processed <- bind_rows(x_train_processed, x_pool_sub)
 
 
 
@@ -337,7 +337,7 @@ rm(s2, s3, s4, s5, s6, s8, s10, s11, x_pool_sub)
 
 # ########################################################################################################
 # pre-process the data, center and scale the values across all predictors
-pre_process <- x_train_processed %>% select(-series_id) %>% preProcess(method = c("center", "scale"))
+pre_process <- x_train_processed %>% select(-series_id, -group_id) %>% preProcess(method = c("center", "scale"))
 x_train_processed <- predict(pre_process, x_train_processed)
 x_test_processed <- predict(pre_process, x_test_processed)
 
@@ -422,7 +422,8 @@ y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
 conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
 
-
+#####vgmb
+x <- x_train_for_train %>% select(-series_id, -group_id) # %>% slice(1:500)
 
 fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
 gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
