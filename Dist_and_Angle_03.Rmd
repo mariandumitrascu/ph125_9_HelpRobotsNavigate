@@ -24,9 +24,9 @@ options(repos="https://CRAN.R-project.org")
 # install.packages("RSpincalc")
 # devtools::install_github("collectivemedia/tictoc")
 # install.packages("kableExtra")
-# install.packages("doParallel")
+# install.packages("doParallel", dependencies = TRUE)
 # install.packages("randomForest", dependencies = TRUE)
-install.packages("rf")
+# install.packages("rf")
 library(readr)
 library(tidyverse)
 library(ISLR)
@@ -41,6 +41,9 @@ library(kableExtra)
 library(doParallel)
 library(foreach)
 
+library(nnet)
+
+library(mlbench)
 
 ```
 
@@ -277,7 +280,7 @@ x_train_processed_from_file <- x_train_processed_from_file # %>% slice(1:1000)
 
 ## Select Features We Want and Partition Data
 
-```{r}
+```{r include=FALSE}
 
 x_test_processed <- x_test_processed_from_file
 
@@ -345,14 +348,14 @@ x_test_processed <- predict(pre_process, x_test_processed)
 # ########################################################################################################
 # create Mahalanobis distance to each of the class centroids
 # see: https://topepo.github.io/caret/pre-processing.html#the-preprocess-function
-tmp <- x_train_processed %>%  
-	select(-series_id, -surface) %>% 
-	as.matrix()
-
-centroids <-	classDist(tmp, x_train_processed$surface, pca = TRUE, keep = 20)
-
-x_train_processed <- bind_cols(x_train_processed,as.data.frame(predict(centroids, x_train_processed)))
-x_test_processed <- bind_cols(x_test_processed, as.data.frame(predict(centroids, x_test_processed)))
+# tmp <- x_train_processed %>%
+# 	select(-series_id, -surface) %>%
+# 	as.matrix()
+# 
+# centroids <-	classDist(tmp, x_train_processed$surface, pca = TRUE, keep = 20)
+# 
+# x_train_processed <- bind_cols(x_train_processed,as.data.frame(predict(centroids, x_train_processed)))
+# x_test_processed <- bind_cols(x_test_processed, as.data.frame(predict(centroids, x_test_processed)))
 
 
 # x_train_processed <- bind_cols(select(x_train_processed, series_id, surface, f3, f2),
@@ -382,17 +385,71 @@ models <- c("naive_bayes",  "svmLinear",
             "adaboost", "gbm",
             "svmRadial", "svmRadialCost", "svmRadialSigma")
 
+models <- c(
+	"avNNet",	# Model Averaged Neural Network
+	"monmlp"	# Monotone Multi-Layer Perceptron Neural Network
+	)
 
+x <- x_train_for_train %>% select(-series_id) # %>% slice(1:500)
 
-fits <- lapply(models, function(model){
+# train data for each model and store in model_fits
+model_fits <- lapply(models, function(model){
   print(model)
-  train(surface ~., method=model, data = select(x_train_for_train, -series_id))
+  train(surface ~., method = model, data = x)
   
 })
 
-names(fits) <- models
+# set a column for each model
+names(model_fits) <- models
+
+# predict for each model generated and store results in model_predictions
+model_predictions <- sapply(model_fits, function(model){
+  
+	y_hat <- predict(model, select(x_train_for_test, -series_id))
+	conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+	conf_matrix$overall["Accuracy"]
+  
+})
+
+control <- trainControl(size = 5, bag = TRUE)
+model_fit  <- train(surface ~., method = "avNNet", data = x, trControl=control)
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+conf_matrix$overall["Accuracy"]
+
+model_fit  <- train(surface ~., method = "monmlp", data = x)
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+conf_matrix$overall["Accuracy"]
 
 
+
+fitControl <- trainControl(method = "repeatedcv", number = 10, repeats = 10)
+gbmGrid <-  expand.grid(interaction.depth = c(1, 5, 9), 
+                        n.trees = (1:30)*50, 
+                        shrinkage = 0.1,
+                        n.minobsinnode = 20)
+nrow(gbmGrid)
+model_fit <- train(surface ~ ., data = x, 
+                 method = "gbm", 
+                 trControl = fitControl, 
+                 verbose = FALSE, 
+                 ## Now specify the exact models 
+                 ## to evaluate:
+                 tuneGrid = gbmGrid)
+
+###
+
+model_fit  <- train(surface ~., method = "C5.0", data = x)
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+conf_matrix$overall["Accuracy"]
+
+# predict
+y_hat <- predict(model_fit, select(x_test_processed, -series_id))
+
+x_test_processed_for_submission <- x_test_processed %>% select(series_id) %>% mutate(surface = y_hat)
+write_csv(x_test_processed_for_submission, "data/submission_C50_02.csv")
 
 ```
 
