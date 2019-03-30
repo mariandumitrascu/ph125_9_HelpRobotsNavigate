@@ -341,8 +341,10 @@ pre_process <- x_train_processed %>% select(-series_id, -group_id) %>% preProces
 x_train_processed <- predict(pre_process, x_train_processed)
 x_test_processed <- predict(pre_process, x_test_processed)
 
-# x_train_processed <- x_train_processed %>% select(-omega_max_to_min, -theta_min, -dist_max_to_min)
-# x_test_processed <- x_test_processed %>% select(-omega_max_to_min, -theta_min, -dist_max_to_min)
+# ########################################################################################################
+# remove columns that aree not important in classification
+x_train_processed <- x_train_processed %>% select(-phi_mean_to_sd, -dist_mean_x, -dist_mean_y, -dist_mean_z, -omega_max_to_min )
+x_test_processed <- x_test_processed %>% select(-phi_mean_to_sd, -dist_mean_x, -dist_mean_y, -dist_mean_z, -omega_max_to_min )
 
 
 # ########################################################################################################
@@ -535,13 +537,13 @@ rm(model_fit_RF_untuned)
 ```{r randomTrees, fig.height=9, fig.width = 16}
 
 # control <- trainControl(method="repeatedcv", number=2, repeats=10, search="grid", sampling = "up")
-control <- trainControl(method="repeatedcv", number=2, repeats=10, search="grid")
+control <- trainControl(method="repeatedcv", number=2, repeats=20, search="grid")
 
 metric <- "Accuracy"
 
 mtry <- sqrt(ncol(x_train_for_train) - 1)
 mtry <- 4:8
-tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 200, 500, 1000, 1500, 2000))
+tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 200, 500, 1000, 1500))
 
 # tunegrid <- expand.grid(.mtry=c(1:10))
 
@@ -570,12 +572,16 @@ y_hat <- predict(model_fit_rf, select(x_train_for_test, -series_id))
 y_test <- x_train_for_test$surface
 
 importance <- importance(model_fit_rf$finalModel)
-importance[order(importance[,1], decreasing = TRUE), ]
+importance[order(importance[,1], decreasing = TRUE), ] 
 varImpPlot(model_fit_rf$finalModel)
 
 conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
 conf_matrix$table
+
+model_fit_rf$finalModel$importance %>% order[MeanDecreaseGini, ]
+
+
 
 # cl <- makePSOCKcluster(10)
 # registerDoParallel(cl)
