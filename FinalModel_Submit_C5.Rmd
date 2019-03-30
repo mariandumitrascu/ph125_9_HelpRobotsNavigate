@@ -20,10 +20,12 @@ Qw will save each modeel on a file on hard-disk
 
 ```{r one-vs-all}
 
+library(mlbench)
+
 x_train_for_train_ova <- x_train_processed
 
 # a prefix to save models on hdd
-model_prefix <- "model_13_fit_final_"
+model_prefix <- "model_14_fit_final_"
 
 # get surfaces in a data frame, so we can loop over
 surfaces <- x_train_for_train_ova %>% group_by(surface) %>% 
