@@ -534,17 +534,18 @@ rm(model_fit_RF_untuned)
 
 ```{r randomTrees, fig.height=9, fig.width = 16}
 
-control <- trainControl(method="repeatedcv", number=10, repeats=2, search="grid", classProbs = TRUE, sampling = "up")
+# control <- trainControl(method="repeatedcv", number=2, repeats=10, search="grid", sampling = "up")
+control <- trainControl(method="repeatedcv", number=2, repeats=10, search="grid")
 
 metric <- "Accuracy"
 
 mtry <- sqrt(ncol(x_train_for_train) - 1)
-# mtry <- 2:5
+mtry <- 4:8
 tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 200, 500, 1000, 1500, 2000))
 
 # tunegrid <- expand.grid(.mtry=c(1:10))
 
-customRF 						<- 	list(type = "Classification", library = "rf", loop = NULL)
+customRF 						<- 	list(type = "Classification", library = "randomForest", loop = NULL)
 customRF$parameters <- 	data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
 customRF$grid 			<- 	function(x, y, len = NULL, search = "grid") {}
 customRF$fit 				<- 	function(x, y, wts, param, lev, last, weights, classProbs, ...) randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...)
@@ -555,7 +556,7 @@ customRF$levels 		<- 	function(x) x$surface
 
 
 model_fit_rf <- train(surface ~ ., 
-											data = slice(select(x_train_for_train, -series_id), 1:500), 
+											data = slice(select(x_train_for_train, -series_id, -group_id), 1:500), 
 											#data = x_train_for_train, 
 											method=customRF, 
 											metric=metric, 
