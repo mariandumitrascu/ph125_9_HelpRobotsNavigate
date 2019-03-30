@@ -11,15 +11,16 @@ knitr::opts_chunk$set(echo = TRUE)
 
 
 ```{r}
-# install.packages("ISLR")
+# install.packages("tidyverse", "ISLR", "readr", "orientlib", "RSpincalc", "matrixStats", "randomForest", "tictoc")
 # install.packages("orientlib")
 # install.packages("RSpincalc")
 # devtools::install_github("collectivemedia/tictoc")
 # install.packages("kableExtra")
 # install.packages("plot3D")
 # install.packages("plotly")
-library(readr)
+
 library(tidyverse)
+library(readr)
 library(ISLR)
 library(caret)
 library(orientlib)
@@ -27,7 +28,6 @@ library(matrixStats)
 library(randomForest)
 library(RSpincalc)
 library(tictoc)
-library(kableExtra)
 
 library(plot3D)
 library(plotly)

@@ -272,5 +272,8 @@ y_test <- test_10$surface
 
 sum(y_hat == y_test)/nrow(test_10)
 
+createFolds()
+
+
 ```
 
