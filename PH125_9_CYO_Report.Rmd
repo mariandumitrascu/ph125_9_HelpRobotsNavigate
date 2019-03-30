@@ -21,25 +21,57 @@ The task is challenging, but I believe I can obtain a decent result using techni
 
 ## Report Structure
 
-	1. First I will describe data provided and the output expected
-	2. Then, will perform data analysis, visualization and get insights
-	3. pre-process and transform data
-	4. decide the model to use, measure its performance and tune it
-	5. perform the final data prediction and show the results, submit to Kaggle
-	6. draw some conclusions
+1. First I will describe data provided and the output expected
+2. Then, will perform data analysis, visualization and get insights
+3. pre-process and transform data
+4. decide the model to use, measure its performance and tune it
+5. perform the final data prediction and show the results, submit to Kaggle
+6. draw some conclusions
 
-## Wher is Stored
+## Report and Data Location
 
 I also keep this project on GitHub here: https://github.com/mariandumitrascu/ph125_9_HelpRobotsNavigate
+Data loaded by the R scripts is kept on an AWS public S3 bucket, to bee easily loaded. This will bee available for the duration of grading.
 
 # Data Description
+
+Input data from Kaggle consists in 4 files:
+
+* *X_trian.csv* and *X_test.csv* -  the input data, covering 10 sensor channels and 128 measurements per time series plus three ID columns:
+
+	+ *row_id*: The ID for this row.
+	+ *series_id*: ID number for the measurement series. Foreign key to y_train/sample_submission.
+	+ *measurement_number*: Measurement number within the series.
+
+	The orientation channels encode the current angles how the robot is oriented as a quaternion (see Wikipedia). Angular velocity describes the angle and speed of motion, and linear acceleration components describe how the speed is changing at different times. The 10 sensor channels are:
+
+	+ *orientation_X*
+	+ *orientation_Y*
+	+ *orientation_Z*
+	+ *orientation_W*
+	+ *angular_velocity_X*
+	+ *angular_velocity_Y*
+	+ *angular_velocity_Z*
+	+ *linear_acceleration_X*
+	+ *linear_acceleration_Y*
+	+ *linear_acceleration_Z*
+
+* *y_train.csv* - the surfaces for training set.
+
+	+ *series_id*: ID number for the measurement series.
+	+ *group_id*: ID number for all of the measurements taken in a recording session. Provided for the training set only, to enable more cross validation strategies.
+	+ *surface*: the target for this competition.
+
+* *sample_submission.csv* - a sample submission file in the correct format.
+
+In this report I will split the training data into two partitions, will fit a model on the first one, and measure it's accuracy on the second. I will also use a small part of data to make it run faster. The R script for generating the final resuls will use all data. 
 
 # Data Analysis
 
 I will make the following assumptions about observations:
 
 * all observations are made using the same robot
-* the interval between 128 observations for each seeries is always the same. 
+* the interval between the 128 observations for each seeries is always the same. 
 * the surface is a plane, no stairs, hills or valleys
 
 From a physicyst perspective there are thre forces involved: gravitation force, robot propulsion force, and friction force. Gravitation force is constant. Friction force depends on the surface by a coefficient and propulsion is an unknown variable. We need to basically determine the friction coeficient based on a movement pattern. Moving objects will travel longer if the surface has a lower friction than on a surface with higher friction. On the other side, changing direction can be teeper on a surface with higher friction. 
@@ -47,11 +79,45 @@ From a physicyst perspective there are thre forces involved: gravitation force, 
 
 ## First Insights
 
-```{r}
-x <- c(1,3,7,9)
-diff(x^2)
+```{r load packages, include=FALSE}
+options(repos="https://CRAN.R-project.org")
+# install.packages("ISLR")
+# install.packages("orientlib")
+# install.packages("RSpincalc")
+# devtools::install_github("collectivemedia/tictoc")
+# install.packages("kableExtra")
+# install.packages("doParallel", dependencies = TRUE)
+# install.packages("randomForest", dependencies = TRUE)
+# install.packages("rf")
+
+library(tidyverse)
+library(readr)
+library(ISLR)
+library(caret)
+library(orientlib)
+library(matrixStats)
+library(randomForest)
+library(RSpincalc)
+library(tictoc)
 
 ```
+```{r load data, include=FALSE}
+# https://s3.amazonaws.com/terraform-bucket-dq001/X_test.csv
+# https://s3.amazonaws.com/terraform-bucket-dq001/y_train.csv
+# https://s3.amazonaws.com/terraform-bucket-dq001/y_train.csv
+
+# load X_train.csv and y_train.csv 
+x_train <- read_csv("https://s3.amazonaws.com/terraform-bucket-dq001/X_train.csv", col_names = TRUE)
+y_train <- read_csv("https://s3.amazonaws.com/terraform-bucket-dq001/y_train.csv", col_names = TRUE)
+
+# then join them
+x_train <- x_train %>% left_join(y_train, by = "series_id")
+
+# remove group_id column
+x_train <- mutate(x_train, surface = as.factor(surface)) %>% 
+	select(-group_id)
+```
+
 
 
 ## Data Distribution
