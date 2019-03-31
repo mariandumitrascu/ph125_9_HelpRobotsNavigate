@@ -344,13 +344,13 @@ Angular velocity data is produced by a magnetostatic sensor, it
 indicates the angular speed the robot is movig in reference with earth
 orientation. Here is the distribution of angular velocity by surface:
 
-\includegraphics{PH125_9_CYO_Report_files/figure-latex/unnamed-chunk-2-1.pdf}
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/angular velocities distrib-1.pdf}
 Linear acceleration data is produced by an inertial sensor. We can
 approximate this later with linear distacne if we consider the unit of
 time to be 1. Here is the distribution of linear acceleration by
 surface:
 
-\includegraphics{PH125_9_CYO_Report_files/figure-latex/unnamed-chunk-3-1.pdf}
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/linear acc distrib-1.pdf}
 We can observe noticeable differences in distribution of these variables
 by surface.
 
@@ -374,10 +374,10 @@ See theimage below (from:
 \url{http://www.chrobotics.com/library/understanding-euler-angles})
 
 \begin{figure}
-\includegraphics[width=0.6\linewidth]{image_euler_angles} \caption{Euler Angles}\label{fig:unnamed-chunk-4}
+\includegraphics[width=0.6\linewidth]{image_euler_angles} \caption{Euler Angles}\label{fig:euler angles image}
 \end{figure}
 
-To convert quaternions to euler angles I used \emph{Q2EA} function in
+To convert quaternions to euler angles I used \emph{Q2EA} function from
 \emph{orientlib} package.(See:
 \url{https://www.rdocumentation.org/packages/orientlib/versions/0.10.3})
 
@@ -424,7 +424,7 @@ To convert quaternions to euler angles I used \emph{Q2EA} function in
 
 Distribution of orientation angles by surface:
 
-\includegraphics{PH125_9_CYO_Report_files/figure-latex/unnamed-chunk-5-1.pdf}
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/euler distrib-1.pdf}
 
 It looks like the most noticeable differences between surfaces can be
 observed in the orientation distribution.
@@ -436,6 +436,12 @@ of these paths.
 
 \includegraphics{PH125_9_CYO_Report_files/figure-latex/draw path-1.pdf}
 \includegraphics{PH125_9_CYO_Report_files/figure-latex/draw path-2.pdf}
+
+I cannot observe obvious differences between paths on carpet vs
+concrete, but maybe a machine can. An idea would be to convert all paths
+to images and do an image analysis, but I will stick with a more
+classical approach for this project. I'll use several models in caret
+package.
 
 \hypertarget{data-pre-processing}{%
 \section{Data Pre-Processing}\label{data-pre-processing}}
@@ -613,43 +619,27 @@ display processing time.
 \begin{Shaded}
 \begin{Highlighting}[]
 \CommentTok{# pre-process train and test data sets}
-\KeywordTok{tic}\NormalTok{(}\StringTok{"process train data"}\NormalTok{)}
-\NormalTok{x_train_processed <-}\StringTok{ }\KeywordTok{pre_process}\NormalTok{(x_train)}
-\KeywordTok{toc}\NormalTok{()}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-## process train data: 46.59 sec elapsed
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\KeywordTok{tic}\NormalTok{(}\StringTok{"process test data"}\NormalTok{)}
-\NormalTok{x_test_processed <-}\StringTok{ }\KeywordTok{pre_process}\NormalTok{(x_test)}
-\KeywordTok{toc}\NormalTok{()}
-\end{Highlighting}
-\end{Shaded}
-
-\begin{verbatim}
-## process test data: 45.82 sec elapsed
-\end{verbatim}
-
-\begin{Shaded}
-\begin{Highlighting}[]
-\CommentTok{# rejoin train data with the labels data set}
-\NormalTok{x_train_processed <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{left_join}\NormalTok{(y_train, }\DataTypeTok{by =} \StringTok{"series_id"}\NormalTok{)}
-
-\CommentTok{# creeatee a folder "data" if doesnt exist}
-\ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\KeywordTok{dir.exists}\NormalTok{(}\StringTok{"data"}\NormalTok{)) }\KeywordTok{dir.create}\NormalTok{(}\StringTok{"data"}\NormalTok{)}
-
-\CommentTok{# save processed data, and use these files from now on}
-\KeywordTok{write_csv}\NormalTok{(x_train_processed, }\StringTok{"data/x_train_processed.csv"}\NormalTok{)}
-\KeywordTok{write_csv}\NormalTok{(x_test_processed, }\StringTok{"data/x_test_processed.csv"}\NormalTok{)}
-
-\CommentTok{# clean some variables and the environment}
-\KeywordTok{rm}\NormalTok{(x_train, x_test, y_train)}
-\KeywordTok{rm}\NormalTok{(x_train_processed, x_test_processed)}
+\CommentTok{# tic("process train data")}
+\CommentTok{# x_train_processed <- pre_process(x_train)}
+\CommentTok{# toc()}
+\CommentTok{# }
+\CommentTok{# tic("process test data")}
+\CommentTok{# x_test_processed <- pre_process(x_test)}
+\CommentTok{# toc()}
+\CommentTok{# }
+\CommentTok{# # rejoin train data with the labels data set}
+\CommentTok{# x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")}
+\CommentTok{# }
+\CommentTok{# # creeatee a folder "data" if doesnt exist}
+\CommentTok{# if (!dir.exists("data")) dir.create("data")}
+\CommentTok{# }
+\CommentTok{# # save processed data, and use these files from now on}
+\CommentTok{# write_csv(x_train_processed, "data/x_train_processed.csv")}
+\CommentTok{# write_csv(x_test_processed, "data/x_test_processed.csv")}
+\CommentTok{# }
+\CommentTok{# # clean some variables and the environment}
+\CommentTok{# rm(x_train, x_test, y_train)}
+\CommentTok{# rm(x_train_processed, x_test_processed)}
 \end{Highlighting}
 \end{Shaded}
 
@@ -666,15 +656,311 @@ things work faster. Full data set will be used in the final script
 \NormalTok{x_train_processed_from_file <-}\StringTok{ }\NormalTok{x_train_processed_from_file }\OperatorTok{%>%}\StringTok{ }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{as.factor}\NormalTok{(surface))}
 
 \CommentTok{# use a smaller set of datab to save time}
-\NormalTok{x_train_processed_from_file <-}\StringTok{ }\NormalTok{x_train_processed_from_file }\OperatorTok{%>%}\StringTok{  }\KeywordTok{slice}\NormalTok{(}\DecValTok{1}\OperatorTok{:}\DecValTok{1000}\NormalTok{)}
+\NormalTok{x_train_processed_from_file <-}\StringTok{ }\NormalTok{x_train_processed_from_file }\OperatorTok{%>%}\StringTok{  }\KeywordTok{slice}\NormalTok{(}\DecValTok{1}\OperatorTok{:}\DecValTok{1200}\NormalTok{)}
 \end{Highlighting}
 \end{Shaded}
 
-\hypertarget{feature-analysis}{%
-\section{Feature Analysis}\label{feature-analysis}}
+\hypertarget{correlated-predictors}{%
+\subsection{Correlated Predictors}\label{correlated-predictors}}
 
-\hypertarget{fit-the-model}{%
-\section{Fit The Model}\label{fit-the-model}}
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# from now we can load pre-processed data from csv files without the need to pre-process again}
+\NormalTok{x_test_processed <-}\StringTok{ }\NormalTok{x_test_processed_from_file}
+\NormalTok{x_train_processed <-}\StringTok{ }\NormalTok{x_train_processed_from_file }
+\end{Highlighting}
+\end{Shaded}
+
+We created 65 features, lets trim some of them. I will identify first
+the ones that are strongly correlated.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{library}\NormalTok{(RColorBrewer)}
+\KeywordTok{library}\NormalTok{(corrplot)}
+\NormalTok{x_matrix <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id, }\OperatorTok{-}\NormalTok{surface) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{as.matrix}\NormalTok{()}
+\NormalTok{x_cor <-}\StringTok{ }\KeywordTok{cor}\NormalTok{(x_matrix, }\DataTypeTok{use =} \StringTok{"pairwise.complete"}\NormalTok{)}
+\KeywordTok{corrplot}\NormalTok{(x_cor,}\DataTypeTok{method =} \StringTok{"square"}\NormalTok{, }\DataTypeTok{number.cex =} \FloatTok{.5}\NormalTok{, }\DataTypeTok{tl.cex =} \FloatTok{0.6}\NormalTok{ ,}\DataTypeTok{order =} \StringTok{"hclust"}\NormalTok{,  }\DataTypeTok{title =} \StringTok{"Correlation Matrix"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/correlation matrix before-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{rm}\NormalTok{(x_matrix, x_cor)}
+\end{Highlighting}
+\end{Shaded}
+
+Using functiom \emph{findCorrelation} nfrom \emph{caret} we can remove
+features that are highly correlated
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# convert both test and train data to matrix in order to analyse feature corelation}
+\NormalTok{x_train_matrix <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{surface, }\OperatorTok{-}\NormalTok{series_id) }\OperatorTok{%>%}\StringTok{ }\KeywordTok{as.matrix}\NormalTok{()}
+\NormalTok{x_test_matrix <-}\StringTok{ }\NormalTok{x_test_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{series_id) }\OperatorTok{%>%}\StringTok{ }\KeywordTok{as.matrix}\NormalTok{()}
+
+\CommentTok{# find features that are high correlated }
+\CommentTok{# find linear dependencies and eliminate them}
+\NormalTok{names_to_remove_test <-}\StringTok{ }\KeywordTok{findCorrelation}\NormalTok{(}\KeywordTok{cor}\NormalTok{(x_test_matrix), }\DataTypeTok{cutoff =} \FloatTok{0.95}\NormalTok{, }\DataTypeTok{names =} \OtherTok{TRUE}\NormalTok{, }\DataTypeTok{verbose =} \OtherTok{FALSE}\NormalTok{, }\DataTypeTok{exact=}\OtherTok{TRUE}\NormalTok{)}
+
+\CommentTok{# remove correlated features from both train and test sets}
+\NormalTok{x_train_processed <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{names_to_remove_test) }
+\NormalTok{x_test_processed <-}\StringTok{ }\NormalTok{x_test_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{names_to_remove_test) }
+
+\CommentTok{# draw again the correlation matrix}
+\NormalTok{x_matrix <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id, }\OperatorTok{-}\NormalTok{surface) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{as.matrix}\NormalTok{()}
+\NormalTok{x_cor <-}\StringTok{ }\KeywordTok{cor}\NormalTok{(x_matrix, }\DataTypeTok{use =} \StringTok{"pairwise.complete"}\NormalTok{)}
+\KeywordTok{corrplot}\NormalTok{(x_cor,}\DataTypeTok{method =} \StringTok{"square"}\NormalTok{, }\DataTypeTok{number.cex =} \FloatTok{.5}\NormalTok{, }\DataTypeTok{tl.cex =} \FloatTok{0.6}\NormalTok{ ,}\DataTypeTok{order =} \StringTok{"hclust"}\NormalTok{,  }\DataTypeTok{title =} \StringTok{"Correlation Matrix"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/correlation matrix after-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{rm}\NormalTok{(x_train_matrix, x_test_matrix, x_matrix, x_cor)}
+\end{Highlighting}
+\end{Shaded}
+
+The number of predictors decreased to 42
+
+Another useful technique in pre-processing is centering around means and
+scaling the predictors:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# pre-process the data, center and scale the values across all predictors}
+\NormalTok{pre_process <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id) }\OperatorTok{%>%}\StringTok{ }\KeywordTok{preProcess}\NormalTok{(}\DataTypeTok{method =} \KeywordTok{c}\NormalTok{(}\StringTok{"center"}\NormalTok{, }\StringTok{"scale"}\NormalTok{))}
+\NormalTok{x_train_processed <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(pre_process, x_train_processed)}
+\NormalTok{x_test_processed <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(pre_process, x_test_processed)}
+
+\KeywordTok{rm}\NormalTok{(pre_process)}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{visualizations}{%
+\subsection{Visualizations}\label{visualizations}}
+
+Before moving forward with more feature seelection, I will plot some
+interesting visualizations of the fetaure dependencies. These are plots
+of orientation agles as sums over all 128 points. \emph{phi},
+\emph{theta} and \emph{psi} are euler orientation angles.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{  }\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{aes}\NormalTok{(phi_mean_all, psi_mean_all, }\DataTypeTok{fill =}\NormalTok{ surface)) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color =}\NormalTok{ surface)) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\DataTypeTok{cex=}\DecValTok{6}\NormalTok{, }\DataTypeTok{pch=}\DecValTok{21}\NormalTok{) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"phi_mean vs. psi_mean"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/euler visualizations-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# this is a circle}
+\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{  }\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{aes}\NormalTok{(theta_mean_all, psi_mean_all, }\DataTypeTok{fill =}\NormalTok{ surface)) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color =}\NormalTok{ surface)) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\DataTypeTok{cex=}\DecValTok{6}\NormalTok{, }\DataTypeTok{pch=}\DecValTok{21}\NormalTok{) }\OperatorTok{+}\StringTok{ }
+\StringTok{    }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"theta_mean vs. psi_mean"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/euler visualizations-2.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# this is a wave}
+\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{  }\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{aes}\NormalTok{(theta_mean_all, phi_mean_all, }\DataTypeTok{fill =}\NormalTok{ surface)) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color =}\NormalTok{ surface)) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\DataTypeTok{cex=}\DecValTok{6}\NormalTok{, }\DataTypeTok{pch=}\DecValTok{21}\NormalTok{) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"theta_mean vs. phi_mean"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/euler visualizations-3.pdf}
+I would specculate that all points that ore not on the global pattern
+are actually outliers, but I did not explore that hypotesis.
+
+The following is the angle between \emph{theta} - \emph{psi} vectors and
+the angular momentum:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{  }\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{aes}\NormalTok{(f2, f3, }\DataTypeTok{fill =}\NormalTok{ surface)) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color =}\NormalTok{ surface)) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\DataTypeTok{cex=}\DecValTok{6}\NormalTok{, }\DataTypeTok{pch=}\DecValTok{21}\NormalTok{) }\OperatorTok{+}
+\StringTok{    }\KeywordTok{ggtitle}\NormalTok{(}\StringTok{"theta-psi angle vs. angular momentum"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/theta psi and momentum-1.pdf}
+We can see some sparations by surfaces that may allow a KNN model to
+work. In fact if we run KNN for just \emph{surface \textasciitilde{} f2
++ f3} we will get an accuracy of 0.56 which is prromising.
+
+\hypertarget{more-feature-selection}{%
+\subsection{More Feature Selection}\label{more-feature-selection}}
+
+I will continue now removing more features based on their importance in
+a randomForest model. I will split the training set into two partitions:
+\emph{x\_train\_for\_train} used for training, and
+\emph{x\_train\_for\_test} to measure the accuracy. Then will plot
+variable importance. Will not use here any tuning, since tis is not the
+final model.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# partition x_train_processed data for training and testing }
+\NormalTok{test_index <-}\StringTok{ }\KeywordTok{createDataPartition}\NormalTok{(}\DataTypeTok{y =}\NormalTok{ x_train_processed}\OperatorTok{$}\NormalTok{surface, }\DataTypeTok{times =} \DecValTok{1}\NormalTok{, }\DataTypeTok{p =} \FloatTok{0.5}\NormalTok{, }\DataTypeTok{list =} \OtherTok{FALSE}\NormalTok{)}
+\NormalTok{x_train_for_train <-}\StringTok{ }\NormalTok{x_train_processed[}\OperatorTok{-}\NormalTok{test_index, ]}
+\NormalTok{x_train_for_test <-}\StringTok{ }\NormalTok{x_train_processed[test_index, ]}
+\KeywordTok{rm}\NormalTok{(test_index)}
+
+\NormalTok{model_fit <-}\StringTok{ }\KeywordTok{randomForest}\NormalTok{(}
+\NormalTok{    surface }\OperatorTok{~}\StringTok{ }\NormalTok{., }
+    \DataTypeTok{metric =} \StringTok{"Accuracy"}\NormalTok{, }
+    \CommentTok{# remove series_id, group_id and select only 500 points}
+    \DataTypeTok{data =} \KeywordTok{slice}\NormalTok{(}\KeywordTok{select}\NormalTok{(x_train_for_train, }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id), }\DecValTok{1}\OperatorTok{:}\DecValTok{500}\NormalTok{)}
+\NormalTok{    )}
+
+\NormalTok{y_hat <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model_fit, }\KeywordTok{select}\NormalTok{(x_train_for_test, }\OperatorTok{-}\NormalTok{series_id))}
+\NormalTok{y_test <-}\StringTok{ }\NormalTok{x_train_for_test}\OperatorTok{$}\NormalTok{surface}
+
+\CommentTok{# # we dont show accuracy and confusion table for now}
+\CommentTok{# conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)}
+\CommentTok{# conf_matrix$overall["Accuracy"]}
+\CommentTok{# conf_matrix$table %>% knitr::kable()}
+
+\NormalTok{importance <-}\StringTok{ }\KeywordTok{importance}\NormalTok{(model_fit)}
+\NormalTok{importance <-}\StringTok{ }\NormalTok{importance[}\KeywordTok{order}\NormalTok{(importance[,}\DecValTok{1}\NormalTok{], }\DataTypeTok{decreasing =} \OtherTok{TRUE}\NormalTok{), ]}
+
+\CommentTok{# plot variable importance}
+\KeywordTok{varImpPlot}\NormalTok{(model_fit)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/randomForest-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# this is the list of variables in order of importance, decreasing}
+\NormalTok{features <-}\StringTok{ }\KeywordTok{names}\NormalTok{(importance)}
+\end{Highlighting}
+\end{Shaded}
+
+We observe following variables does not help prediction too much:
+theta\_min, omega\_max\_to\_min, dist\_mean\_y, omega\_mean\_x,
+dist\_mean\_x, dist\_mean\_z So I will remove them:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# remove columns do not contribute to classification}
+\NormalTok{x_train_processed <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{theta_min, }\OperatorTok{-}\NormalTok{omega_max_to_min, }\OperatorTok{-}\NormalTok{dist_mean_y, }\OperatorTok{-}\NormalTok{omega_mean_x, }\OperatorTok{-}\NormalTok{dist_mean_x, }\OperatorTok{-}\NormalTok{dist_mean_z)}
+\NormalTok{x_test_processed <-}\StringTok{ }\NormalTok{x_test_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{theta_min, }\OperatorTok{-}\NormalTok{omega_max_to_min, }\OperatorTok{-}\NormalTok{dist_mean_y, }\OperatorTok{-}\NormalTok{omega_mean_x, }\OperatorTok{-}\NormalTok{dist_mean_x, }\OperatorTok{-}\NormalTok{dist_mean_z)}
+\end{Highlighting}
+\end{Shaded}
+
+\hypertarget{find-the-best-model}{%
+\section{Find the Best Model}\label{find-the-best-model}}
+
+It is time now to fit some models. I tried many models on the side but I
+will present in this report only
+
+\begin{itemize}
+\tightlist
+\item
+  KNN,
+\item
+  rpart,\\
+\item
+  randomForest
+\item
+  randomForest asembly
+\end{itemize}
+
+Please nothe that the code in this report is using only 1000 records
+from training, that is further partitioned in train and test with 0.5
+ratio I'vee done this to mke it run faster. I am using full data set in
+the R script and also I will present the final results from Kaggle.
+
+\hypertarget{knn}{%
+\section{KNN}\label{knn}}
+
+KNN is getting incrementaly slow with the number of features. So for KNN
+I used only the most important variables as part of the formula.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# create a data frame to store Accuracy results by model}
+\NormalTok{model_results <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{method =} \StringTok{"Model"}\NormalTok{, }\DataTypeTok{accuracy =} \StringTok{"Accuracy"}\NormalTok{)}
+
+\NormalTok{model_fit <-}\StringTok{ }\KeywordTok{train}\NormalTok{(surface }\OperatorTok{~}\StringTok{ }\NormalTok{f3 }\OperatorTok{+}\StringTok{ }\NormalTok{f2 }\OperatorTok{+}\StringTok{ }\NormalTok{phi_mean_all }\OperatorTok{+}\StringTok{ }\NormalTok{theta_mean_all }\OperatorTok{+}\StringTok{ }\NormalTok{psi_mean_all,  }\DataTypeTok{method =} \StringTok{"knn"}\NormalTok{, }
+             \DataTypeTok{tuneGrid =} \KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{k =} \KeywordTok{seq}\NormalTok{(}\DecValTok{2}\NormalTok{, }\DecValTok{100}\NormalTok{, }\DecValTok{2}\NormalTok{)), }
+             \DataTypeTok{data =} \KeywordTok{select}\NormalTok{(x_train_for_train, }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id))}
+
+\KeywordTok{ggplot}\NormalTok{(model_fit) }
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/KNN-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# get confusion matrix and display it together with the results}
+\NormalTok{y_hat <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model_fit, x_train_for_test, }\DataTypeTok{type =} \StringTok{"raw"}\NormalTok{)}
+\NormalTok{conf_matrix <-}\StringTok{ }\KeywordTok{confusionMatrix}\NormalTok{(y_hat, x_train_for_test}\OperatorTok{$}\NormalTok{surface)}
+
+\CommentTok{# display confusion matrix}
+\NormalTok{conf_matrix}\OperatorTok{$}\NormalTok{table }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}lrrrrrrrrr@{}}
+\toprule
+& carpet & concrete & fine\_concrete & hard\_tiles &
+hard\_tiles\_large\_space & soft\_pvc & soft\_tiles & tiled &
+wood\tabularnewline
+\midrule
+\endhead
+carpet & 20 & 4 & 0 & 0 & 0 & 5 & 0 & 2 & 2\tabularnewline
+concrete & 5 & 84 & 0 & 0 & 0 & 5 & 0 & 6 & 5\tabularnewline
+fine\_concrete & 0 & 0 & 33 & 0 & 5 & 1 & 1 & 2 & 3\tabularnewline
+hard\_tiles & 1 & 0 & 0 & 7 & 0 & 0 & 0 & 0 & 0\tabularnewline
+hard\_tiles\_large\_space & 0 & 2 & 0 & 0 & 23 & 2 & 0 & 1 &
+3\tabularnewline
+soft\_pvc & 4 & 4 & 4 & 0 & 2 & 114 & 7 & 5 & 3\tabularnewline
+soft\_tiles & 1 & 1 & 4 & 0 & 6 & 8 & 91 & 1 & 0\tabularnewline
+tiled & 7 & 5 & 0 & 1 & 0 & 0 & 2 & 42 & 5\tabularnewline
+wood & 0 & 2 & 2 & 0 & 1 & 2 & 1 & 9 & 47\tabularnewline
+\bottomrule
+\end{longtable}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{model_results <-}\StringTok{ }\KeywordTok{bind_rows}\NormalTok{(model_results,}
+                           \KeywordTok{data.frame}\NormalTok{(}
+                             \DataTypeTok{method =} \StringTok{"KNN"}\NormalTok{,}
+                             \DataTypeTok{accuracy =} \KeywordTok{as.character}\NormalTok{(conf_matrix}\OperatorTok{$}\NormalTok{overall[}\StringTok{"Accuracy"}\NormalTok{])))}
+
+\NormalTok{model_results }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}ll@{}}
+\toprule
+method & accuracy\tabularnewline
+\midrule
+\endhead
+Model & Accuracy\tabularnewline
+KNN & 0.764510779436153\tabularnewline
+\bottomrule
+\end{longtable}
 
 \hypertarget{one-vs-one-or-one-vs-all}{%
 \subsection{One-vs-One or One-vs-All}\label{one-vs-one-or-one-vs-all}}

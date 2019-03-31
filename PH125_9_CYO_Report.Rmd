@@ -1,7 +1,7 @@
 ---
-title: "Surface Detection by Robot Movements"
+title: "Surface Detection by Robot Movements - Report"
 author: "Marian Dumitrascu"
-date: "March 19, 2019"
+date: "March 31, 2019"
 header-includes: #allows you to add in your own Latex packages
 - \usepackage{float} #use the 'float' package
 - \floatplacement{figure}{H} #make every figure with caption = h
@@ -99,6 +99,7 @@ options(repos="https://CRAN.R-project.org")
 
 library(tidyverse)
 library(readr)
+library(dplyr)
 library(ISLR)
 library(caret)
 library(orientlib)
@@ -133,7 +134,7 @@ Quick look at the first 5 rows of the training data: `r nicetable`
 
 ## Data Distribution
 
-```{r include=FALSE}
+```{r data table, warning=FALSE, include=FALSE}
 dist <- x_train %>% group_by(surface) %>% 
 	summarize(measurements = n_distinct(series_id))
 
@@ -144,7 +145,7 @@ Here is a distributon of measurements by surface in the training set: `r nicetab
 
 Angular velocity data is produced by a magnetostatic sensor, it indicates the angular speed the robot is movig in reference with earth orientation. Here is the distribution of angular velocity by surface:
 
-```{r echo=FALSE, warning=FALSE}
+```{r angular velocities distrib, echo=FALSE, warning=FALSE}
 options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
 
 x_train %>%
@@ -159,7 +160,7 @@ x_train %>%
 ```
 Linear acceleration data is produced by an inertial sensor. We can approximate this later with linear distacne if we consider the unit of time to be 1. Here is the distribution of linear acceleration by surface:
 
-```{r echo=FALSE, warning=FALSE}
+```{r linear acc distrib,  echo=FALSE, warning=FALSE}
 options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
 
 x_train %>%
@@ -184,7 +185,7 @@ Orientation data comes from a gyroscop sensor. To draw the distribution of orien
 
 See theimage below (from: http://www.chrobotics.com/library/understanding-euler-angles)
 
-```{r echo=FALSE, fig.cap="Euler Angles", out.width = "60%", message=FALSE, warning=FALSE}
+```{r euler angles image, echo=FALSE, fig.cap="Euler Angles", out.width = "60%", message=FALSE, warning=FALSE}
 # download.file(url = "http://www.chrobotics.com/wp-content/uploads/2012/11/Inertial-Frame-1024x655.png",
 #           destfile = "image_euler_angles.png",
 #           mode = 'wb')
@@ -236,7 +237,7 @@ x_test <- convert_quaternions_to_euler(x_test)
 
 Distribution of orientation angles by surface:
 
-```{r echo=FALSE, warning=FALSE}
+```{r euler distrib, echo=FALSE, warning=FALSE}
 options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
 
 x_train %>%
@@ -300,7 +301,7 @@ I cannot observe obvious differences between paths on carpet vs concrete, but ma
 An important step in fitting a good model is pre-processing the data. In our case we havee series of observation of 128 measurements. In this section I will create aggregations around these measurements. These are: mean, standard deviation, distances of segments from one point to the next. total distance, total angle change both from magnetostatic and gyro sensors. 
 All of these are encapsulated in the following function:
 
-```{r}
+```{r data pre processing}
 # function for pre-processing 
 # n_of_rows defaults to total number ofseries
 # is_train indicates that the data is training, thus will do an extra action
@@ -461,27 +462,27 @@ I use *tic()* *toc()* functions from *tictoc* package to display processing time
 ```{r preprocess both train and test data and save, warning=FALSE}
 
 # pre-process train and test data sets
-tic("process train data")
-x_train_processed <- pre_process(x_train)
-toc()
-
-tic("process test data")
-x_test_processed <- pre_process(x_test)
-toc()
-
-# rejoin train data with the labels data set
-x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")
-
-# creeatee a folder "data" if doesnt exist
-if (!dir.exists("data")) dir.create("data")
-
-# save processed data, and use these files from now on
-write_csv(x_train_processed, "data/x_train_processed.csv")
-write_csv(x_test_processed, "data/x_test_processed.csv")
-
-# clean some variables and the environment
-rm(x_train, x_test, y_train)
-rm(x_train_processed, x_test_processed)
+# tic("process train data")
+# x_train_processed <- pre_process(x_train)
+# toc()
+# 
+# tic("process test data")
+# x_test_processed <- pre_process(x_test)
+# toc()
+# 
+# # rejoin train data with the labels data set
+# x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")
+# 
+# # create a folder "data" if doesnt exist
+# if (!dir.exists("data")) dir.create("data")
+# 
+# # save processed data, and use these files from now on
+# write_csv(x_train_processed, "data/x_train_processed.csv")
+# write_csv(x_test_processed, "data/x_test_processed.csv")
+# 
+# # clean some variables and the environment
+# rm(x_train, x_test, y_train)
+# rm(x_train_processed, x_test_processed)
 ```
 
 Load pre-processed data from hard-disk and use them from here. 
@@ -495,7 +496,7 @@ x_test_processed_from_file <- read_csv("data/x_test_processed.csv")
 x_train_processed_from_file <- x_train_processed_from_file %>% mutate(surface = as.factor(surface))
 
 # use a smaller set of datab to save time
-x_train_processed_from_file <- x_train_processed_from_file %>%  slice(1:1000)
+x_train_processed_from_file <- x_train_processed_from_file %>%  slice(1:1200)
 
 
 ```
@@ -503,7 +504,7 @@ x_train_processed_from_file <- x_train_processed_from_file %>%  slice(1:1000)
 ## Correlated Predictors
 
 
-```{r load processed data from filees}
+```{r load processed data from files}
 
 # from now we can load pre-processed data from csv files without the need to pre-process again
 x_test_processed <- x_test_processed_from_file
@@ -511,7 +512,7 @@ x_train_processed <- x_train_processed_from_file
 ```
 
 We created `r ncol(x_train_processed) - 3` features, lets trim some of them. I will identify first the ones that are strongly correlated.
-```{r correelation matrix before, fig.retina=3, out.width=8, out.height=9}
+```{r correlation matrix before, fig.width=8, fig.height=9}
 library(RColorBrewer)
 library(corrplot)
 x_matrix <- x_train_processed %>% select(-series_id, -group_id, -surface) %>% 
@@ -523,7 +524,7 @@ rm(x_matrix, x_cor)
 ```
 Using functiom *findCorrelation* nfrom *caret* we can remove features that are highly correlated
 
-```{r correelation matrix after, fig.retina=3, out.width=8, out.height=9}
+```{r correlation matrix after, fig.width=8, fig.height=9}
 
 # convert both test and train data to matrix in order to analyse feature corelation
 x_train_matrix <- x_train_processed %>% select(-surface, -series_id) %>% as.matrix()
@@ -548,7 +549,7 @@ rm(x_train_matrix, x_test_matrix, x_matrix, x_cor)
 The number of predictors decreased to `r ncol(x_train_processed)-3`
 
 Another useful technique in pre-processing is centering around means and scaling the predictors:
-```{r centering and scaling}
+```{r data centering and scaling}
 
 # pre-process the data, center and scale the values across all predictors
 pre_process <- x_train_processed %>% select(-series_id, -group_id) %>% preProcess(method = c("center", "scale"))
@@ -562,19 +563,17 @@ rm(pre_process)
 
 Before moving forward with more feature seelection, I will plot some interesting visualizations of the fetaure dependencies. 
 These are plots of orientation agles as sums over all 128 points. *phi*, *theta* and *psi* are euler orientation angles.
-```{r out.width=7, out.height=5, fig.width=10, fig.height=6}
+```{r euler visualizations,  fig.width=10, fig.height=6}
 x_train_processed %>%  ggplot(aes(phi_mean_all, psi_mean_all, fill = surface)) +
 	geom_point(aes(color = surface)) + 
 	geom_point(cex=6, pch=21) +
 	ggtitle("phi_mean vs. psi_mean")
 
-# this is a circle
 x_train_processed %>%  ggplot(aes(theta_mean_all, psi_mean_all, fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21) + 
 	ggtitle("theta_mean vs. psi_mean")
 
-# this is a wave
 x_train_processed %>%  ggplot(aes(theta_mean_all, phi_mean_all, fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21) +
@@ -586,24 +585,26 @@ I would specculate that all points that ore not on the global pattern are actual
 
 The following is the angle between *theta* - *psi* vectors and the angular momentum:
 
-```{r, out.width=7, out.height=5, fig.width=10, fig.height=6}
+```{r theta psi and momentum, fig.width=10, fig.height=6}
 x_train_processed %>%  ggplot(aes(f2, f3, fill = surface)) +
 	geom_point(aes(color = surface)) +
 	geom_point(cex=6, pch=21) +
 	ggtitle("theta-psi angle vs. angular momentum")
 
 ```
-We can see some sparations by surfaces that may allow a KNN modeel to work. In fact if we run KNN for just *surface ~ f2 + f3* we will get an accuracy of 0.56 which is prromising.
+We can see some sparations by surfaces that may allow a KNN model to work. In fact if we run KNN for just *surface ~ f2 + f3* we will get an accuracy of 0.56 which is prromising.
 
 ## More Feature Selection
 
 I will continue now removing more features based on their importance in a randomForest model. I will split the training set into two partitions: *x_train_for_train* used for training, and *x_train_for_test* to measure the accuracy. 
 Then will plot variable importance. Will not use here any tuning, since tis is not the final model. 
 
-```{r out.width=7, out.height=5, fig.width=10, fig.height=6}
-# partition the data
-# 
-
+```{r randomForest, fig.width=10, fig.height=6}
+# partition x_train_processed data for training and testing 
+test_index <- createDataPartition(y = x_train_processed$surface, times = 1, p = 0.5, list = FALSE)
+x_train_for_train <- x_train_processed[-test_index, ]
+x_train_for_test <- x_train_processed[test_index, ]
+rm(test_index)
 
 model_fit <- randomForest(
 	surface ~ ., 
@@ -620,25 +621,327 @@ y_test <- x_train_for_test$surface
 # conf_matrix$overall["Accuracy"]
 # conf_matrix$table %>% knitr::kable()
 
-# importance <- importance(model_fit)
-# importance[order(importance[,1], decreasing = TRUE), ]
+importance <- importance(model_fit)
+importance <- importance[order(importance[,1], decreasing = TRUE), ]
+
+# plot variable importance
 varImpPlot(model_fit)
+
+# this is the list of variables in order of importance, decreasing
+features <- names(importance)
+
+```
+
+We observe following variables does not help prediction too much: *theta_min*, *omega_max_to_min*, *dist_mean_y*, *omega_mean_x*, *dist_mean_x*, *dist_mean_z*
+So I will remove them:
+```{r remove features}
+
+# remove columns do not contribute to classification
+x_train_processed <- x_train_processed %>% select(-theta_min, -omega_max_to_min, -dist_mean_y, -omega_mean_x, -dist_mean_x, -dist_mean_z)
+x_test_processed <- x_test_processed %>% select(-theta_min, -omega_max_to_min, -dist_mean_y, -omega_mean_x, -dist_mean_x, -dist_mean_z)
+
+```
+
+
+
+# Find the Best Model
+
+It is time now to fit some models. I tried many models on the side but I will present in this report only 
+
+* KNN, 
+* rpart,  
+* randomForest,
+* randomForest asembly
+
+Please nothe that the code in this report is using only 1000 records from training, that is further partitioned in train and test with 0.5 ratio I'vee done this to mke it run faster.
+I am using full data set in the R script and also I will present the final results from Kaggle. 
+
+## KNN Model
+
+KNN is getting incrementaly slow with the number of features. So for KNN I used only the most important variables as part of the formula. 
+
+```{r KNN, warning=FALSE}
+
+# use most important variables to fit KNN
+model_fit <- train(surface ~ f3 + f2 + phi_mean_all + theta_mean_all + psi_mean_all,  method = "knn", 
+             tuneGrid = data.frame(k = seq(2, 100, 2)), 
+             data = select(x_train_for_train, -series_id, -group_id))
+
+ggplot(model_fit) 
+
+# get confusion matrix and display it together with the results
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id, -group_id), type = "raw")
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+
+# display confusion matrix
+conf_matrix$table %>% knitr::kable()
+
+# create a data frame to store Accuracy results by model
+model_results <- data.frame(Model = "KNN", Accuracy = conf_matrix$overall["Accuracy"])
+model_results %>% knitr::kable()
+
+```
+## rpart Model
+
+Another model I tried is rpart (Recursive Partitioning And Regression Tree)
+
+```{r rpart, warning=FALSE}
+
+model_fit <- train(surface ~ ., 
+                     method = "rpart",
+                     tuneGrid = data.frame(cp = seq(0, 0.075, len = 40)),
+                     data = select(x_train_for_train, -series_id, -group_id))
+ggplot(model_fit)
+
+# get confusion matrix and display it together with the results
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id, -group_id), type = "raw")
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+
+# display confusion matrix
+conf_matrix$table %>% knitr::kable()
+
+model_results <- bind_rows(model_results,
+                           data_frame(
+                             Model = "rpart",
+                             Accuracy = conf_matrix$overall["Accuracy"]))
+model_results %>% knitr::kable()
 
 
 ```
-We observe following variables does not help prediction too much: theta_mean_to_sd, omega_mean_Z, euler_min
-So I will remove them 
+## RandomForest Model
+
+For randomForest model  choose to customize it and try optimization over mtry (~max number of ramifications) and ntree (max number of forests to grow) parameters.
+I got the way of customization from following article about tuning randomForests:
+https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
+This may take several minutes to run
+```{r randomForest, warning=FALSE}
+
+# use cross validation 5 folds and repeated twice
+control <- trainControl(method="repeatedcv", number=5, repeats=2, search="grid")
+
+metric <- "Accuracy"
+
+# mtry <- sqrt(ncol(x_train_for_train) - 1)
+
+mtry <- 5:8
+tunegrid <- expand.grid(.mtry=mtry,.ntree=c(100, 200, 500, 1000, 1500))
+
+# tunegrid <- expand.grid(.mtry=c(1:10))
+
+customRF 				<- 	list(type = "Classification", library = "randomForest", loop = NULL)
+customRF$parameters <- 	data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
+customRF$grid 			<- 	function(x, y, len = NULL, search = "grid") {}
+customRF$fit 			<- 	function(x, y, wts, param, lev, last, weights, classProbs, ...) randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...)
+customRF$predict 		<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL) predict(modelFit, newdata)
+customRF$prob 			<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL)	predict(modelFit, newdata, type = "prob")
+customRF$sort 			<- 	function(x) x[order(x[,1]),]
+customRF$levels 		<- 	function(x) x$surface
 
 
-# Fit The Model
+model_fit <- train(surface ~ ., 
+		data = select(x_train_for_train, -series_id, -group_id), 
+		method=customRF, 
+		metric=metric, 
+		tuneGrid=tunegrid, 
+		trControl=control
+		)
+print(model_fit)
+plot(model_fit)
 
-## One-vs-One or One-vs-All
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+y_test <- x_train_for_test$surface
 
-# Results and Submit the Data
+# get confusion matrix and display it together with the results
+y_hat <- predict(model_fit, x_train_for_test, type = "raw")
+conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+
+# display confusion matrix
+conf_matrix$table %>% knitr::kable()
+
+model_results <- bind_rows(model_results,
+                           data_frame(
+                             Model = "randomForest",
+                             Accuracy = conf_matrix$overall["Accuracy"]))
+model_results %>% knitr::kable()
+```
+
+## Final model: randomForest one-vs-one
+
+For the final model I choose a one-vs-one approach. Where I fit a modeel for each class.  For this I loop over each of surfacees, rename all others to "the rest" then I fit a randomForest model. 
+I record results as probabilities in a table with surfacees as columns and probability of the class as values. 
+This would be a very unbalanced class. To balance it, I  create a 3rd set of data, called x_train_pool and move some reecords of the current class from it into current training data set.
+I save each model in a folder called "models". To predict, i'm looping over each surface in the test set and store the result as probabilities. The one with highest probability will determine the class for each point.
+
+I use ROC as the metric to measure model performance. Accuracy wont be the best for this heeavy unbalanceed data set. 
+This will take significant amount of time even if  I tried to usee minimum set of tuning options.
+
+Here is the code:
+
+```{r one-vs-all, warning=FALSE}
+# store the train data in a new variable
+x_train_processed_ova <- x_train_processed 
+
+# a prefix to save models on file system
+model_prefix <- "model_14_fit_"
+
+# create a subfolder called "models if it doesnt exists"
+if (!dir.exists("models")) dir.create("models")
+
+# partition data into:train, test, and balancing pool
+# we will use the pool to extract records to balance the dataset
+folds <- createFolds(x_train_processed_ova$surface, k = 3, list = TRUE)
+x_train_for_train_ova <- x_train_processed_ova[folds$Fold1,]
+x_train_for_test_ova <- x_train_processed_ova[folds$Fold2,]
+x_train_pool <- x_train_processed_ova[folds$Fold3,]
+
+# get surfaces in a data frame, so we can loop over
+surfaces <- x_train_for_train_ova %>% group_by(surface) %>% 
+	summarize(n = n()) %>% 
+	mutate(surface = as.character(surface)) %>% 
+	# filter(surface == "hard_tiles") %>% 
+	arrange(n)
+
+# idealy, I should use apply function but I'm still working on that
+# this can bee also be improved if I would use foreacch packade with %dopar% option for parallelization.,
+# still work in progress
+for(current_surface in surfaces$surface)
+{
+		# convert surface to two values: current surface and "the_rest"
+		x_train_for_train_ova_current <- x_train_for_train_ova %>% 
+			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
+			mutate(surface = as.factor(surface))
+		
+		# add records from the pool to balance the recordset
+		x_chunk_for_balance <- x_train_pool %>% filter(surface == current_surface)
+		x_train_for_train_ova_current <- bind_rows(x_train_for_train_ova_current, x_chunk_for_balance)
+		
+		###################################################################################################
+		# custom randomForest
+		# 
+		mtry <- sqrt(ncol(x_train_for_train_ova_current) - 1)
+		tunegrid <- expand.grid(.mtry=mtry,.ntree=c( 300,500, 1000))
+		control <- trainControl(method="repeatedcv", 
+														number=5, 
+														repeats=2, 
+														search="grid", 
+														classProbs = TRUE,
+														# we could also use subsampling, but this will make it run even slower
+														sampling = "up",
+														summaryFunction = twoClassSummary
+														)
+		customRF 						<- 	list(type = "Classification", library = "randomForest", loop = NULL)
+		customRF$parameters <- 	data.frame(parameter = c("mtry", "ntree"), class = rep("numeric", 2), label = c("mtry", "ntree"))
+		customRF$grid 			<- 	function(x, y, len = NULL, search = "grid") {}
+		customRF$fit 				<- 	function(x, y, wts, param, lev, last, weights, classProbs, ...) randomForest(x, y, mtry = param$mtry, ntree=param$ntree, ...)
+		customRF$predict 		<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL) predict(modelFit, newdata)
+		customRF$prob 			<- 	function(modelFit, newdata, preProc = NULL, submodels = NULL)	predict(modelFit, newdata, type = "prob")
+		customRF$sort 			<- 	function(x) x[order(x[,1]),]
+		customRF$levels 		<- 	function(x) x$surface
+				
+		model_fit_current <- train(surface ~ ., 
+															 data = select(x_train_for_train_ova_current, -series_id, -group_id), 
+															 method=customRF, 
+															 # use ROC for the metric because Accuracy is not the best 
+															 # in case of this heavy unballanced data seet
+															 metric="ROC", 
+															 tuneGrid=tunegrid, 
+															 trControl=control)
+		###################################################################################################
+		
+		# save the model into /models folder
+		model_name <- paste(model_prefix, current_surface, sep = "")
+		file <- paste("models/",  model_name, ".rds", sep = "")
+		write_rds(model_fit_current, file)
+}
+
+```
+
+Now, we'll load the models and perform model prediction and evaluation:
+
+
+```{r}
+
+# create a data frame the will store probabilities for each model
+# we'll use this for voting
+# the model with highes prediction will get the vote
+
+results_voting <- data.frame(
+	series_id = x_train_for_test_ova$series_id, 
+	true_surface = x_train_for_test_ova$surface)
+
+for(current_surface in surfaces$surface) {
+	
+	# prepare the test dataset: we keep current surface name, and we rename all other surfaces to "the_rest"
+	# we have now a binary clasification.
+	x_train_for_test_ova_current <- x_train_for_test_ova %>% 
+			mutate(surface = ifelse(surface == current_surface, current_surface, "the_rest")) %>% 
+			mutate(surface = as.factor(surface))
+	
+	# get the model from a file
+	model_name <- paste(model_prefix, current_surface, sep = "")
+	model_fit_current <- readRDS(paste("models/", model_name, ".rds", sep = ""))
+	
+	# get y_hat_prob
+	y_hat_prob <- predict(
+										model_fit_current, 
+										select(x_train_for_test_ova_current, -series_id), 
+										type = "prob")
+	
+	# store the probability of curent model for current surface in a column named by current surface
+	results_voting <- results_voting %>% mutate(last_result_prob = y_hat_prob[,current_surface])
+	names(results_voting)[ncol(results_voting)] <- current_surface # the column name is current surface
+
+}
+
+# add an empty column for predicted surfaces 
+results_voting <- results_voting %>%  mutate(pred_surface = rep("", nrow(results_voting)))
+
+# set the value on predicted surface to the surface that got maximum probability
+for (i in 1:nrow(results_voting)) {
+		results_voting[i, "pred_surface"] <- names(which.max(select(results_voting[i,], -series_id, -true_surface, -pred_surface)))
+}
+
+results_voting <- results_voting %>% mutate(pred_surface = as.factor(pred_surface))
+
+
+# compute confusion matrix and print it
+conf_matrix <- confusionMatrix(results_voting$pred_surface,
+															 results_voting$true_surface)
+
+# display confusion matrix
+conf_matrix$table %>% knitr::kable()
+
+model_results <- bind_rows(model_results,
+			data_frame(
+			Model = "randomForest one-vs-one",
+			Accuracy = conf_matrix$overall["Accuracy"]))
+# model_results %>% knitr::kable()
+
+nicetable <- model_results %>% knitr::kable()
+
+```
+
+
+
+# Results 
+
+Here are the final results:
+'r nicetable'
+
+Running the final model on the full dataset produces an accuracy of:
+
+
 
 # Conclusion
 
+In this project I used several models to try to determine the surface a robot is moving baseed on data from thre sensors: inertial, magnetostatic and gyroscopic. 
+This is part of an open competition on Kaggle:  [*CareerCon 2019 - Help Navigate Robots*](https://www.kaggle.com/c/career-con-2019)
+Although the accuracy obtained on the local data set is not bad, when submitting the predictions to kaglge I get a relatively low result. This could mean that somehow the model is overfitted for the train data. Even if I didnt touch the test partition that I kept for evaluation. My guess is that should work on eliminating the outliers observed in Visualization section. They may alter the model in a bad way. 
 One of the most important outcome of this prroject is that I learned a few things in addition to what was presented in the course. 
+
+I hope this was interesting for you.
+
+Thank you for reading
 
 # Reference
 
@@ -652,6 +955,6 @@ One of the most important outcome of this prroject is that I learned a few thing
 
 5. Tune Machine Learning Algorithms in R (random forest case study) by Jason Brownlee. https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
 
-6. Classification with more than two classes, from Introduction to Information Retrieval, Christopher D. Manning, Prabhakar Raghavan and Hinrich Schütze,, Cambridge University Press 2008  https://nlp.stanford.edu/IR-book/html/htmledition/classification-with-more-than-two-classes-1.html
+6. Classification with more than two classes - Introduction to Information Retrieval, Christopher D. Manning, Prabhakar Raghavan and Hinrich Schütze,, Cambridge University Press 2008  https://nlp.stanford.edu/IR-book/html/htmledition/classification-with-more-than-two-classes-1.html
 
 7. A Guide To using IMU (Accelerometer and Gyroscope Devices) in Embedded Applications - http://www.starlino.com/imu_guide.html
