@@ -17,30 +17,33 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-For this project I choosed a Kaggle.com open competion project. This is [*CareerCon 2019 - Help Navigate Robots*](https://www.kaggle.com/c/career-con-2019). Here is the description of the project from Kaggle:
+For this project I choose a Kaggle.com open competition project. This is [*CareerCon 2019 - Help Navigate Robots*](https://www.kaggle.com/c/career-con-2019). Here is the description of the project from Kaggle:
 
 
 > *In this competition, you’ll help robots recognize the floor surface they’re standing on using data collected from Inertial Measurement Units (IMU sensors).*
 > *We’ve collected IMU sensor data while driving a small mobile robot over different floor surfaces on the university premises. The task is to predict which one of the nine floor types (carpet, tiles, concrete) the  robot is on using sensor data such as acceleration and velocity. Succeed and you'll help improve the navigation of robots without assistance across many different surfaces, so they won’t fall down on the job.*
 
 The task is challenging, but I believe I can obtain a decent result using techniques and tools learned in this course.
-Please note that many code chunks are not showing in the PDF for aestetic reasons. You can find the code behind many of the graphs and images in the Rmd version.
+Please note that some code chunks are not showing in the PDF for aesthetic reasons. You can find the code behind many of the graphs and images in the Rmd version.
 
 ## Report Structure
 
 1. First I will describe data provided and the output expected
-2. Then, will perform data analysis, visualization and get insights
-3. pre-process and transform data
-4. decide the model to use, measure its performance and tune it
-5. perform the final data prediction and show the results, submit to Kaggle
-6. draw some conclusions
+2. then, will perform data analysis, visualization and get insights
+3. pre-process and transform data,
+4. analyse features and selectmost impartant ones
+5. decide the model to use, try KNN, rpart and two flavosrs of randomForest
+6. perform the final data prediction and show the results
+7. draw some conclusions
 
 ## Report and Data Location
 
-I also keep this project on GitHub here: https://github.com/mariandumitrascu/ph125_9_HelpRobotsNavigate
-Data loaded by the R scripts is kept on an AWS public S3 bucket, to bee easily loaded. This will bee available for the duration of grading.
+I also keep this project on GitHub: https://github.com/mariandumitrascu/ph125_9_HelpRobotsNavigate
+Data loaded by the R scripts is kept on an AWS public S3 bucket, to be easily loaded. This will bee available for the duration of the grading.
 
-# Data Description
+# The Data
+
+## Data Description
 
 Input data from Kaggle consists in 4 files:
 
@@ -67,24 +70,21 @@ Input data from Kaggle consists in 4 files:
 
 	+ *series_id*: ID number for the measurement series.
 	+ *group_id*: ID number for all of the measurements taken in a recording session. Provided for the training set only, to enable more cross validation strategies.
-	+ *surface*: lables or classes of the training data. this is the element that need to be predicted
+	+ *surface*: labels or classes of the training data. this is the element that need to be predicted
 
 * *sample_submission.csv* - a sample submission file in the correct format.
 
-In this report I will split the training data into two partitions, will fit a model on the first one, and measure it's accuracy on the second. I will also use a small part of data to make it run faster. The R script for generating the final resuls will use all data. 
+In this report I will split the training data into two partitions, will fit a model on the first one, and measure it's accuracy on the second. I will also use a small part of data to make it run faster. The R script for generating the final results will use all data. 
 
-# Data Analysis
+## Data Analysis
 
 I will make the following assumptions about observations:
 
 * all observations are made using the same robot
-* the interval between the 128 observations for each seeries is always the same. 
+* the interval between the 128 observations for each series is always the same. 
 * the surface is a plane, no stairs, hills or valleys
 
-From a physicyst perspective there are thre forces involved: gravitation force, robot propulsion force, and friction force. Gravitation force is constant. Friction force depends on the surface by a coefficient and propulsion is an unknown variable. We need to basically determine the friction coeficient based on a movement pattern. Moving objects will travel longer if the surface has a lower friction than on a surface with higher friction. On the other side, changing direction can be teeper on a surface with higher friction. 
-
-
-## First Insights
+From a physicist perspective there are three forces involved: gravitation force, robot propulsion force, and friction force. Gravitation force is constant. Friction force depends on the surface by a coefficient and propulsion is an unknown variable. We need to basically determine the friction coefficient based on a movement pattern. Moving objects will travel longer if the surface has a lower friction than on a surface with higher friction. On the other side, changing direction can be deeper on a surface with higher friction. 
 
 ```{r load packages, include=FALSE}
 options(repos="https://CRAN.R-project.org")
@@ -141,9 +141,9 @@ dist <- x_train %>% group_by(surface) %>%
 nicetable <- dist %>% knitr::kable()
 
 ```
-Here is a distributon of measurements by surface in the training set: `r nicetable`
+Here is a distribution of measurements by surface in the training set: `r nicetable`
 
-Angular velocity data is produced by a magnetostatic sensor, it indicates the angular speed the robot is movig in reference with earth orientation. Here is the distribution of angular velocity by surface:
+Angular velocity data is produced by a magnetostatic sensor, it indicates the angular speed the robot is moving in reference with earth orientation. Here is the distribution of angular velocity by surface:
 
 ```{r angular velocities distrib, echo=FALSE, warning=FALSE}
 options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
@@ -158,7 +158,7 @@ x_train %>%
     facet_grid(surface ~ feature) + 
     xlim(-0.5, 0.5)
 ```
-Linear acceleration data is produced by an inertial sensor. We can approximate this later with linear distacne if we consider the unit of time to be 1. Here is the distribution of linear acceleration by surface:
+Linear acceleration data is produced by an inertial sensor. We can approximate this later with linear distance if we consider the unit of time to be 1. Here is the distribution of linear acceleration by surface:
 
 ```{r linear acc distrib,  echo=FALSE, warning=FALSE}
 options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
@@ -177,13 +177,13 @@ x_train %>%
 ```
 We can observe noticeable differences in distribution of these variables by surface. 
 
-Orientation data comes from a gyroscop sensor. To draw the distribution of orientation, we'll convert quaternion values to euler angles which are more intuitive and easier to interpret. Euler angles provide a way to represent the 3D orientation of an object using a combination of three rotations about different axes: 
+Orientation data comes from a gyroscope sensor. To draw the distribution of orientation, we'll convert quaternion values to euler angles which are more intuitive and easier to interpret. Euler angles provide a way to represent the 3D orientation of an object using a combination of three rotations about different axes: 
 	
 * roll - rotation around x, noted *phi*, 
 * pitch - rotation around y, noted *theta*,
 * yaw - rotation around z, noted *psi*
 
-See theimage below (from: http://www.chrobotics.com/library/understanding-euler-angles)
+See the image below (from: http://www.chrobotics.com/library/understanding-euler-angles)
 
 ```{r euler angles image, echo=FALSE, fig.cap="Euler Angles", out.width = "60%", message=FALSE, warning=FALSE}
 # download.file(url = "http://www.chrobotics.com/wp-content/uploads/2012/11/Inertial-Frame-1024x655.png",
@@ -296,9 +296,9 @@ rm(draw_sample, series, draw_set)
 
 I cannot observe obvious differences between paths on carpet vs concrete, but maybe a machine can. An idea would be to convert all paths to images and do an image analysis, but I will stick with a more classical approach for this project. I'll use several models in caret package.
 
-# Data Pre-Processing
+## Data Pre-Processing
 
-An important step in fitting a good model is pre-processing the data. In our case we havee series of observation of 128 measurements. In this section I will create aggregations around these measurements. These are: mean, standard deviation, distances of segments from one point to the next. total distance, total angle change both from magnetostatic and gyro sensors. 
+An important step in fitting a good model is pre-processing the data. In our case we have series of observation of 128 measurements. In this section I will create aggregations around these measurements. These are: mean, standard deviation, distances of segments from one point to the next. total distance, total angle change both from magnetostatic and gyro sensors. 
 All of these are encapsulated in the following function:
 
 ```{r data pre processing}
@@ -462,27 +462,27 @@ I use *tic()* *toc()* functions from *tictoc* package to display processing time
 ```{r preprocess both train and test data and save, warning=FALSE}
 
 # pre-process train and test data sets
-# tic("process train data")
-# x_train_processed <- pre_process(x_train)
-# toc()
-# 
-# tic("process test data")
-# x_test_processed <- pre_process(x_test)
-# toc()
-# 
-# # rejoin train data with the labels data set
-# x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")
-# 
-# # create a folder "data" if doesnt exist
-# if (!dir.exists("data")) dir.create("data")
-# 
-# # save processed data, and use these files from now on
-# write_csv(x_train_processed, "data/x_train_processed.csv")
-# write_csv(x_test_processed, "data/x_test_processed.csv")
-# 
-# # clean some variables and the environment
-# rm(x_train, x_test, y_train)
-# rm(x_train_processed, x_test_processed)
+tic("process train data")
+x_train_processed <- pre_process(x_train)
+toc()
+
+tic("process test data")
+x_test_processed <- pre_process(x_test)
+toc()
+
+# rejoin train data with the labels data set
+x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")
+
+# create a folder "data" if doesnt exist
+if (!dir.exists("data")) dir.create("data")
+
+# save processed data, and use these files from now on
+write_csv(x_train_processed, "data/x_train_processed.csv")
+write_csv(x_test_processed, "data/x_test_processed.csv")
+
+# clean some variables and the environment
+rm(x_train, x_test, y_train)
+rm(x_train_processed, x_test_processed)
 ```
 
 Load pre-processed data from hard-disk and use them from here. 
@@ -522,7 +522,7 @@ corrplot(x_cor,method = "square", number.cex = .5, tl.cex = 0.6 ,order = "hclust
 
 rm(x_matrix, x_cor)
 ```
-Using functiom *findCorrelation* nfrom *caret* we can remove features that are highly correlated
+Using function *findCorrelation* from *caret* we can remove features that are highly correlated
 
 ```{r correlation matrix after, fig.width=8, fig.height=9}
 
@@ -559,10 +559,10 @@ x_test_processed <- predict(pre_process, x_test_processed)
 rm(pre_process)
 ```
 
-## Visualizations
+## Data Visualization
 
-Before moving forward with more feature seelection, I will plot some interesting visualizations of the fetaure dependencies. 
-These are plots of orientation agles as sums over all 128 points. *phi*, *theta* and *psi* are euler orientation angles.
+Before moving forward with more feature selection, I will plot some interesting visualizations of the feature dependencies. 
+These are plots of orientation angles as sums over all 128 points. *phi*, *theta* and *psi* are euler orientation angles.
 ```{r euler visualizations,  fig.width=10, fig.height=6}
 x_train_processed %>%  ggplot(aes(phi_mean_all, psi_mean_all, fill = surface)) +
 	geom_point(aes(color = surface)) + 
@@ -581,7 +581,7 @@ x_train_processed %>%  ggplot(aes(theta_mean_all, phi_mean_all, fill = surface))
 
 
 ```
-I would specculate that all points that ore not on the global pattern are actually outliers, but I did not explore that hypotesis. 
+I would speculate that all points that ore not on the global pattern are actually outlines, but I did not explore that hypothesis. 
 
 The following is the angle between *theta* - *psi* vectors and the angular momentum:
 
@@ -592,12 +592,12 @@ x_train_processed %>%  ggplot(aes(f2, f3, fill = surface)) +
 	ggtitle("theta-psi angle vs. angular momentum")
 
 ```
-We can see some sparations by surfaces that may allow a KNN model to work. In fact if we run KNN for just *surface ~ f2 + f3* we will get an accuracy of 0.56 which is prromising.
+We can see some separations by surfaces that may allow a KNN model to work. In fact if we run KNN for just *surface ~ f2 + f3* we will get an accuracy of 0.56 which is promising.
 
 ## More Feature Selection
 
 I will continue now removing more features based on their importance in a randomForest model. I will split the training set into two partitions: *x_train_for_train* used for training, and *x_train_for_test* to measure the accuracy. 
-Then will plot variable importance. Will not use here any tuning, since tis is not the final model. 
+Then will plot variable importance. Will not use here any tuning, since this is not the final model. 
 
 ```{r randomForest, fig.width=10, fig.height=6}
 # partition x_train_processed data for training and testing 
@@ -644,21 +644,21 @@ x_test_processed <- x_test_processed %>% select(-theta_min, -omega_max_to_min, -
 
 
 
-# Find the Best Model
+# The Model
 
 It is time now to fit some models. I tried many models on the side but I will present in this report only 
 
 * KNN, 
 * rpart,  
 * randomForest,
-* randomForest asembly
+* randomForest assembly
 
-Please nothe that the code in this report is using only 1000 records from training, that is further partitioned in train and test with 0.5 ratio I'vee done this to mke it run faster.
+Please note that the code in this report is using only 1000 records from training, that is further partitioned in train and test with 0.5 ratio I've done this to make it run faster.
 I am using full data set in the R script and also I will present the final results from Kaggle. 
 
 ## KNN Model
 
-KNN is getting incrementaly slow with the number of features. So for KNN I used only the most important variables as part of the formula. 
+KNN is getting incrementally slow with the number of features. So for KNN I used only the most important variables as part of the formula. 
 
 ```{r KNN, warning=FALSE}
 
@@ -714,7 +714,7 @@ For randomForest model  choose to customize it and try optimization over mtry (~
 I got the way of customization from following article about tuning randomForests:
 https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
 This may take several minutes to run
-```{r randomForest, warning=FALSE}
+```{r randomForest one vs one, warning=FALSE}
 
 # use cross validation 5 folds and repeated twice
 control <- trainControl(method="repeatedcv", number=5, repeats=2, search="grid")
@@ -767,17 +767,17 @@ model_results %>% knitr::kable()
 
 ## Final model: randomForest one-vs-one
 
-For the final model I choose a one-vs-one approach. Where I fit a modeel for each class.  For this I loop over each of surfacees, rename all others to "the rest" then I fit a randomForest model. 
-I record results as probabilities in a table with surfacees as columns and probability of the class as values. 
-This would be a very unbalanced class. To balance it, I  create a 3rd set of data, called x_train_pool and move some reecords of the current class from it into current training data set.
-I save each model in a folder called "models". To predict, i'm looping over each surface in the test set and store the result as probabilities. The one with highest probability will determine the class for each point.
+For the final model I choose a one-vs-one approach. Where I fit a model for each class.  For this I loop over each of surfaces, rename all others to "the rest" then I fit a randomForest model. 
+I record results as probabilities in a table with surfaces as columns and probability of the class as values. 
+This would be a very unbalanced class. To balance it, I  create a 3rd set of data, called x_train_pool and move some records of the current class from it into current training data set.
+I save each model in a folder called "models". To predict, I'm looping over each surface in the test set and store the result as probabilities. The one with highest probability will determine the class for each point.
 
-I use ROC as the metric to measure model performance. Accuracy wont be the best for this heeavy unbalanceed data set. 
-This will take significant amount of time even if  I tried to usee minimum set of tuning options.
+I use ROC as the metric to measure model performance. Accuracy wont be the best for this heavy unbalanced data set. 
+This will take significant amount of time even if  I tried to use minimum set of tuning options.
 
 Here is the code:
 
-```{r one-vs-all, warning=FALSE}
+```{r randomForest one-vs-all, warning=FALSE}
 # store the train data in a new variable
 x_train_processed_ova <- x_train_processed 
 
@@ -864,7 +864,6 @@ Now, we'll load the models and perform model prediction and evaluation:
 # create a data frame the will store probabilities for each model
 # we'll use this for voting
 # the model with highes prediction will get the vote
-
 results_voting <- data.frame(
 	series_id = x_train_for_test_ova$series_id, 
 	true_surface = x_train_for_test_ova$surface)
@@ -903,6 +902,16 @@ for (i in 1:nrow(results_voting)) {
 
 results_voting <- results_voting %>% mutate(pred_surface = as.factor(pred_surface))
 
+# show a sample of the voting table
+nicetable <- results_voting %>% knitr::kable() %>% head(5)
+
+```
+
+The voting table looks like this:
+`r nicetable`
+
+
+```{r show confusion matrix}
 
 # compute confusion matrix and print it
 conf_matrix <- confusionMatrix(results_voting$pred_surface,
@@ -928,20 +937,18 @@ nicetable <- model_results %>% knitr::kable()
 Here are the final results:
 'r nicetable'
 
-Running the final model on the full dataset produces an accuracy of:
-
-
 
 # Conclusion
 
-In this project I used several models to try to determine the surface a robot is moving baseed on data from thre sensors: inertial, magnetostatic and gyroscopic. 
+In this project I used several models to try to determine the surface a robot is moving based on data from three sensors: inertial, magnetostatic and gyroscopic. 
 This is part of an open competition on Kaggle:  [*CareerCon 2019 - Help Navigate Robots*](https://www.kaggle.com/c/career-con-2019)
-Although the accuracy obtained on the local data set is not bad, when submitting the predictions to kaglge I get a relatively low result. This could mean that somehow the model is overfitted for the train data. Even if I didnt touch the test partition that I kept for evaluation. My guess is that should work on eliminating the outliers observed in Visualization section. They may alter the model in a bad way. 
-One of the most important outcome of this prroject is that I learned a few things in addition to what was presented in the course. 
+I used KNN, rpart and two flavors of randomForest. I also tried on the side several other models with similar results. I believe the key is in determining the right feature set that would predict accurately the surface.
+Although the accuracy obtained on the local data set is not bad, when submitting the predictions to Kaggle.com I get a relatively low result. This could mean that somehow the model is overfitted for the train data. Even if I didn't touch the test partition that I kept for evaluation. My guess is that should work on eliminating the outlines observed in Visualization section. They may alter the model in a bad way. 
+One of the most important outcome of this project is that I learned a few things in addition to what was presented in the course. 
 
 I hope this was interesting for you.
 
-Thank you for reading
+Thank you for reading!
 
 # Reference
 
