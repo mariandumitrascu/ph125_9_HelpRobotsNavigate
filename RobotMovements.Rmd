@@ -81,7 +81,7 @@ train_tmp %>% ggplot(aes(xy, z)) +
 
 ```{r}
 series <- train_df %>% 
-	filter(surface == 'hard_tiles_large_space') %>% 
+	filter(surface == 'hard_tiles') %>% 
 	group_by(series_id) %>% summarize(n = n()) 
 
 series <- series %>% slice(1:6) %>% pull(series_id)
@@ -89,7 +89,7 @@ series <- series %>% slice(1:6) %>% pull(series_id)
 train_tmp <- train_df %>% 
 	filter(series_id %in% series)
 
-train_tmp %>% ggplot(aes(xy, z)) +
+train_tmp %>% ggplot(aes(x, z)) +
 	geom_path() +
 	facet_wrap(~series_id + group_id) 
 ```

@@ -2,7 +2,13 @@
 title: "Surface Detection by Robot Movements"
 author: "Marian Dumitrascu"
 date: "March 19, 2019"
-output: pdf_document
+header-includes: #allows you to add in your own Latex packages
+- \usepackage{float} #use the 'float' package
+- \floatplacement{figure}{H} #make every figure with caption = h
+output: 
+  pdf_document:
+    fig_cap: yes
+    keep_tex: yes
 ---
 
 ```{r setup, include=FALSE}
@@ -18,6 +24,7 @@ For this project I choosed a Kaggle.com open competion project. This is [*Career
 > *We’ve collected IMU sensor data while driving a small mobile robot over different floor surfaces on the university premises. The task is to predict which one of the nine floor types (carpet, tiles, concrete) the  robot is on using sensor data such as acceleration and velocity. Succeed and you'll help improve the navigation of robots without assistance across many different surfaces, so they won’t fall down on the job.*
 
 The task is challenging, but I believe I can obtain a decent result using techniques and tools learned in this course.
+Please note that many code chunks are not showing in the PDF for aestetic reasons. You can find the code behind many of the graphs and images in the Rmd version.
 
 ## Report Structure
 
@@ -43,7 +50,7 @@ Input data from Kaggle consists in 4 files:
 	+ *series_id*: ID number for the measurement series. Foreign key to y_train/sample_submission.
 	+ *measurement_number*: Measurement number within the series.
 
-	The orientation channels encode the current angles how the robot is oriented as a quaternion (see Wikipedia). Angular velocity describes the angle and speed of motion, and linear acceleration components describe how the speed is changing at different times. The 10 sensor channels are:
+	The orientation channels encode the current angles of how the robot is oriented as a quaternion (see Wikipedia). Angular velocity describes the angle and speed of motion, and linear acceleration components describe how the speed is changing at different times. The 10 sensor channels are:
 
 	+ *orientation_X*
 	+ *orientation_Y*
@@ -88,7 +95,6 @@ options(repos="https://CRAN.R-project.org")
 # install.packages("kableExtra")
 # install.packages("doParallel", dependencies = TRUE)
 # install.packages("randomForest", dependencies = TRUE)
-# install.packages("rf")
 
 library(tidyverse)
 library(readr)
@@ -121,7 +127,7 @@ x_train <- mutate(x_train, surface = as.factor(surface))
 
 nicetable <- head(x_train, 5) %>% knitr::kable()
 ```
-Here is quick look at the first 5 rows of the training data: `r nicetable`
+Quick look at the first 5 rows of the training data: `r nicetable`
 
 ## Data Distribution
 
@@ -134,9 +140,9 @@ nicetable <- dist %>% knitr::kable()
 ```
 Here is a distributon of measurements by surface in the training set: `r nicetable`
 
-Angular velocity is produced by a magnetostatic sensor, it indicates the angular speed the robot is movig in reference with earth orientation. Here is the distribution of angular velocity by surface:
+Angular velocity data is produced by a magnetostatic sensor, it indicates the angular speed the robot is movig in reference with earth orientation. Here is the distribution of angular velocity by surface:
 
-```{r warning=FALSE}
+```{r echo=FALSE, warning=FALSE}
 options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
 
 x_train %>%
@@ -149,9 +155,9 @@ x_train %>%
     facet_grid(surface ~ feature) + 
     xlim(-0.5, 0.5)
 ```
-Linear acceleration is produced by an inertial sensor. We can approximate this later with linear distacne if we consider the the unit of time to be 1. Here is the distribution of linear acceleration by surface:
+Linear acceleration data is produced by an inertial sensor. We can approximate this later with linear distacne if we consider the unit of time to be 1. Here is the distribution of linear acceleration by surface:
 
-```{r warning=FALSE}
+```{r echo=FALSE, warning=FALSE}
 options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
 
 x_train %>%
@@ -164,23 +170,27 @@ x_train %>%
     facet_grid(surface ~ feature) + 
     xlim(-15, 5)
 
+
 ```
 We can observe noticeable differences in distribution of these variables by surface. 
 
-To do the same for orientation we'll need to convert quaternion values to euler angles which are more intuitive and easier to interpret. Euler angles provide a way to represent the 3D orientation of an object using a combination of three rotations about different axes: roll (*phi*), pitch (*theta*) and yaw (*psi*)
+Orientation data comes from a gyroscop sensor. To draw the distribution of orientation, we'll convert quaternion values to euler angles which are more intuitive and easier to interpret. Euler angles provide a way to represent the 3D orientation of an object using a combination of three rotations about different axes: 
+	
+* roll - rotation around x, noted *phi*, 
+* pitch - rotation around y, noted *theta*,
+* yaw - rotation around z, noted *psi*
 
-```{r fig.height=2, fig.width=3, message=FALSE, warning=FALSE, include=FALSE, cache=TRUE}
-download.file(url = "http://www.chrobotics.com/wp-content/uploads/2012/11/Inertial-Frame-1024x655.png",
-          destfile = "image_euler_angles.png",
-          mode = 'wb')
-# knitr::include_graphics(path = "image_euler_angles.png")
+See theimage below (from: http://www.chrobotics.com/library/understanding-euler-angles)
+
+```{r echo=FALSE, fig.cap="Euler Angles", out.width = "60%", message=FALSE, warning=FALSE}
+# download.file(url = "http://www.chrobotics.com/wp-content/uploads/2012/11/Inertial-Frame-1024x655.png",
+#           destfile = "image_euler_angles.png",
+#           mode = 'wb')
+knitr::include_graphics(path = "image_euler_angles.png")
 ```
 
-![Euler Angles](image_euler_angles.png)
 
-This data comes from a gyroscop sensor, it idicates the orientation of the robot. I noted euler anles with: *phi*, *theta* and *psi.* Although we dont know the order of them in our case, they have the following meaning:
- 
-I used *Q2EA* function in *orientlib* package.(See: https://www.rdocumentation.org/packages/orientlib/versions/0.10.3)
+To convert quaternions to euler angles I used *Q2EA* function in *orientlib* package.(See: https://www.rdocumentation.org/packages/orientlib/versions/0.10.3)
 
 ```{r quaternions to euler, warning=FALSE}
 
@@ -188,27 +198,31 @@ I used *Q2EA* function in *orientlib* package.(See: https://www.rdocumentation.o
 convert_quaternions_to_euler <- function(a_dataset){
 	
 	# use Q2EA from RSpincalc to convert quaternions to euler angles
-	Q <- a_dataset %>% select(orientation_X, 
-														orientation_Y, 
-														orientation_Z, 
-														orientation_W) %>% 
-		as.matrix()
+	Q <- a_dataset %>% select(
+					orientation_X, 
+					orientation_Y, 
+					orientation_Z, 
+					orientation_W) %>% 
+				as.matrix()
 	
-	euler_matrix <- Q2EA(Q, EulerOrder='xyz', 
-											 tol = 10 * .Machine$double.eps, 
-											 ichk = FALSE, 
-											 ignoreAllChk = FALSE)
+	euler_matrix <- Q2EA(Q, 
+				 EulerOrder='xyz', 
+				 tol = 10 * .Machine$double.eps, 
+				 ichk = FALSE, 
+				 ignoreAllChk = FALSE)
 
 	# add the new columns to the dataset
-	a_dataset <- a_dataset %>% mutate(phi = euler_matrix[,1],
-																		theta = euler_matrix[,2], 
-																		psi = euler_matrix[,3])
+	a_dataset <- a_dataset %>% mutate(
+					phi = euler_matrix[,1],
+					theta = euler_matrix[,2], 
+					psi = euler_matrix[,3])
 	
 	# remove quaternion columns
-	a_dataset <- a_dataset %>% select(-orientation_X, 
-																		-orientation_Y,  
-																		-orientation_Z, 
-																		-orientation_W)
+	a_dataset <- a_dataset %>% select(
+				-orientation_X, 
+				-orientation_Y,  
+				-orientation_Z, 
+				-orientation_W)
 	
 	# return the new dataset
 	a_dataset
@@ -218,29 +232,275 @@ x_train <- convert_quaternions_to_euler(x_train)
 x_test <- convert_quaternions_to_euler(x_test)
 ```
 
+Distribution of orientation angles by surface:
 
-```{r warning=FALSE}
+```{r echo=FALSE, warning=FALSE}
 options(repr.plot.width = 6, repr.plot.height = 4, repr.plot.res = 100)
 
 x_train %>%
     gather(key = "feature", value = "value", phi, theta, psi) %>%
     filter(feature %in% c('phi', 
-    											'theta' ,
-    											'psi')) %>%  
+						'theta' ,
+						'psi')) %>%  
     ggplot(aes(x = value, fill=surface)) + 
     geom_density() +
     facet_grid(surface ~ feature) + 
 	xlim(-0.5, 0.5) +
-	ylim(0, 0.5)
+	ylim(0, 10)
 ```
-We can see distinct patterns here.
+
+It looks like the most noticeable differences between surfaces can be observed in the orientation distribution.
+
+If we consider unit of time to be 1, we can draw the path of the robot movement. In the following figures I draw the path for several cases, faceted by surface. I expect that the surface would influence the shape of these paths.
+
+```{r draw path, echo=FALSE, message=FALSE, warning=FALSE, paged.print=FALSE}
+draw_sample <- x_train %>% 
+	mutate(
+	x = linear_acceleration_X, 
+	y = linear_acceleration_Y, 
+	z = linear_acceleration_Z)
+
+series <- draw_sample %>% 
+	filter(surface == 'carpet') %>% 
+	group_by(series_id) %>% 
+	summarize(n = n()) %>% 
+	slice(1:6) %>% pull(series_id)
+	
+draw_set <- draw_sample %>% 
+	filter(series_id %in% series)
+
+draw_set %>% ggplot(aes(x, y, col=z)) +
+	geom_path() +
+	facet_wrap(~series_id) + 
+	ggtitle(label = "Robot path for surface = carpet")
+	
+series <- draw_sample %>% 
+	filter(surface == 'concrete') %>% 
+	group_by(series_id) %>% summarize(n = n()) %>% 
+	slice(1:6) %>% pull(series_id)
+
+draw_set <- draw_sample %>% 
+	filter(series_id %in% series)
+
+draw_set %>% ggplot(aes(x, y, col=z)) +
+	geom_path() +
+	facet_wrap(~series_id) + 
+	ggtitle(label = "Robot path for surface = concrete")
+
+rm(draw_sample, series, draw_set)
+	
+```
+
 
 
 # Data Pre-Processing
 
-## Quaternion to Euler
+An important step in fitting a good model is pre-processing the data. In our case we havee series of observation of 128 measurements. In this section I will create aggregations around these measurements. These are: mean, standard deviation, distances of segments from one point to the next. total distance, total angle change both from magnetostatic and gyro sensors. 
+All of these are encapsulated in the following function:
 
-## More Data Analysis
+```{r}
+# function for pre-processing 
+# n_of_rows defaults to total number ofseries
+# is_train indicates that the data is training, thus will do an extra action
+pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
+	
+	# get data grouped by seeries_id and compute some means 
+	processed_data_df <- a_dataframe %>% 
+	group_by(series_id) %>% 
+	summarize(
+		phi_mean_all = mean(phi),
+		phi_sd_all = sd(phi),
+		phi_mean_to_sd_all = mean(phi)/sd(phi),
+		theta_mean_all = mean(theta),
+		theta_sd_all = sd(theta),
+		theta_mean_to_sd_all = mean(theta)/sd(theta),
+		psi_mean_all = mean(psi),
+		psi_sd_all = sd(psi),
+		psi_mean_to_sd_all = mean(psi)/sd(psi),
+		# this is the rectangular area that surounds the path of linear movement
+		dist_area = (max(linear_acceleration_X) - min(linear_acceleration_X)) * (max(linear_acceleration_Y) - min(linear_acceleration_Y)) + 
+			(max(linear_acceleration_X) - min(linear_acceleration_X)) * (max(linear_acceleration_Z) - min(linear_acceleration_Z)) + 
+			(max(linear_acceleration_Y) - min(linear_acceleration_Y)) * (max(linear_acceleration_Z) - min(linear_acceleration_Z)),
+		# this is the rectangular area that surounds the path of angular movement
+		omega_area = (max(angular_velocity_X) - min(angular_velocity_X)) * (max(angular_velocity_Y) - min(angular_velocity_Y)) +
+			(max(angular_velocity_X) - min(angular_velocity_X)) * (max(angular_velocity_Z) - min(angular_velocity_Z)) +
+			(max(angular_velocity_Y) - min(angular_velocity_Y)) * (max(angular_velocity_Z) - min(angular_velocity_Z)),
+		euler_area = (max(phi) - min(phi)) * (max(theta) - min(theta)) + 
+			(max(phi) - min(phi)) * (max(psi) - min(psi)) + 
+			(max(theta) - min(theta)) * (max(psi) - min(psi)),
+		dist_mean_x = mean(linear_acceleration_X),
+		dist_mean_y = mean(linear_acceleration_Y),
+		dist_mean_z = mean(linear_acceleration_Z),
+		omega_mean_x = mean(angular_velocity_X),
+		omega_mean_y = mean(angular_velocity_Y),
+		omega_mean_Z = mean(angular_velocity_Z),
+		dist_sd_x = sd(linear_acceleration_X),
+		dist_sd_y = sd(linear_acceleration_Y),
+		dist_sd_z = sd(linear_acceleration_Z),
+		omega_sd_x = sd(angular_velocity_X),
+		omega_sd_y = sd(angular_velocity_Y),
+		omega_sd_Z = sd(angular_velocity_Z)	
+		
+		) %>% 
+		slice(1:n_of_rows)
+	
+	# define an empty data frame with summary metrics that we'll use for each set of 128 observations
+	metrics <- c("dist_total","dist_max","dist_min","dist_max_to_min","dist_mean","dist_sd","dist_mean_to_sd",
+							 "omega_total","omega_max","omega_min","omega_max_to_min","omega_mean","omega_sd","omega_mean_to_sd",
+							 "phi_total","phi_max","phi_min","phi_mean","phi_sd","phi_mean_to_sd",
+							 "theta_total","theta_max","theta_min","theta_mean","theta_sd","theta_mean_to_sd",
+							 "psi_total","psi_max","psi_min","psi_mean","psi_sd","psi_mean_to_sd",
+							 "euler_total","euler_max","euler_min","euler_mean","euler_sd","euler_mean_to_sd")
+	tmp_df <- data.frame(matrix(ncol = length(metrics), nrow = 0) )
+	colnames(tmp_df) <- metrics
+
+	# loop over each series and compute aggegations
+	# should use apply type of function here, but I use "for" until I master the apply
+	for (s_id in processed_data_df$series_id)
+	{
+		# get current measurement set
+		this_chunk_df <- a_dataframe %>% filter(series_id == s_id)
+		
+		# select only columns we are interested in 
+		this_chunk_df <- this_chunk_df %>% 
+			select(
+			phi, theta, psi,  
+			angular_velocity_X, angular_velocity_Y, angular_velocity_Z,
+			linear_acceleration_X, linear_acceleration_Y, linear_acceleration_Z)
+		# this is a vector with euclidian distances from one point to the next
+		dist_v <- 	sqrt(diff(this_chunk_df$linear_acceleration_X)^2 + 
+								diff(this_chunk_df$linear_acceleration_Y)^2 + 
+								diff(this_chunk_df$linear_acceleration_Z)^2)
+		omega_v <- 	sqrt(diff(this_chunk_df$angular_velocity_X)^2 + 
+								diff(this_chunk_df$angular_velocity_Y)^2 + 
+								diff(this_chunk_df$angular_velocity_Z)^2)
+		phi_v <- abs(diff(this_chunk_df$phi))
+		theta_v <- abs(diff(this_chunk_df$theta))
+		psi_v <- abs(diff(this_chunk_df$psi))
+
+		# fill or temp data frame with summary computations for our 128 measurement set
+		tmp_df <- bind_rows(tmp_df, data_frame(
+			
+			# all features starting with "dist_" refers to linear movement
+			dist_total = sum(dist_v),
+			dist_max = max(dist_v),
+			dist_min = min(dist_v),
+			dist_max_to_min = max(dist_v)/min(dist_v),
+			dist_mean = mean(dist_v),
+			dist_sd = sd(dist_v),
+			dist_mean_to_sd = mean(dist_v)/sd(dist_v),  # reciprocal coef of variation
+			
+			# all features starting with "omega_" refers to angle velocity measurments
+			omega_total = sum(omega_v),
+			omega_max = max(omega_v),
+			omega_min = min(omega_v),
+			omega_max_to_min = max(omega_v)/min(omega_v),
+			omega_mean = mean(omega_v),
+			omega_sd = sd(omega_v),
+			omega_mean_to_sd = mean(omega_v)/sd(omega_v), # reciprocal coef of variation
+
+			# phi, theta and psi reffers to roll, pitch and yaw rotations
+			phi_total = sum(phi_v),
+			phi_max = max(phi_v),
+			phi_min = min(phi_v),
+			phi_mean = mean(phi_v),
+			phi_sd = sd(phi_v),
+			phi_mean_to_sd = mean(phi_v)/sd(phi_v),
+			
+			theta_total = sum(theta_v),
+			theta_max = max(theta_v),
+			theta_min = min(theta_v),
+			theta_mean = mean(theta_v),
+			theta_sd = sd(theta_v),
+			theta_mean_to_sd = mean(theta_v)/sd(theta_v),
+			
+			psi_total = sum(psi_v),
+			psi_max = max(psi_v),
+			psi_min = min(psi_v),
+			psi_mean = mean(psi_v),
+			psi_sd = sd(psi_v),
+			psi_mean_to_sd = mean(psi_v)/sd(psi_v),
+			
+			# features starting with "euler_" refers to 
+			# agragation of all phi, theta and psi rotations
+			euler_total = sum(phi_v + theta_v + psi_v), 
+			euler_max = max(phi_v + theta_v + psi_v),
+			euler_min = min(phi_v + theta_v + psi_v),
+			euler_mean = mean(phi_v + theta_v + psi_v),
+			euler_sd = sd(phi_v + theta_v + psi_v),
+			euler_mean_to_sd = mean(phi_v + theta_v + psi_v)/sd(phi_v + theta_v + psi_v)
+			))
+	
+	} # end of for over series
+	
+	# add the summary computations to the data set of series
+	processed_data_df <- bind_cols(processed_data_df, tmp_df)
+
+	# more features
+	# I added thesee as an experimentation after observing the dependencies graphs
+	# will explain later
+	processed_data_df <- processed_data_df %>% mutate(
+		# this is an agular momentum 
+		f1 = log(dist_mean_to_sd*omega_mean_to_sd),
+		
+		# this is an angular momentum 
+		f2 = log(dist_total*omega_total),
+		
+		# this is the angle between theta and psi vectors
+		f3 = abs(atan(theta_mean_all/psi_mean_all)))		
+	
+	# return the proceessed data
+	processed_data_df
+}
+```
+
+Pre-process the data and save it to a local file. This is to save time for further analysis by skipping the pre-processing procedure.
+I use *tic()* *toc()* functions from *tictoc* package to display processing time.
+```{r preprocess both train and test data and save, warning=FALSE}
+
+# pre-process train and test data sets
+tic("process train data")
+x_train_processed <- pre_process(x_train)
+toc()
+
+tic("process test data")
+x_test_processed <- pre_process(x_test)
+toc()
+
+# rejoin train data with the labels data set
+x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")
+
+# creeatee a folder "data" if doesnt exist
+if (!dir.exists("data")) dir.create("data")
+
+# save processed data, and use these files from now on
+write_csv(x_train_processed, "data/x_train_processed.csv")
+write_csv(x_test_processed, "data/x_test_processed.csv")
+
+# clean some variables and the environment
+rm(x_train, x_test, y_train)
+rm(x_train_processed, x_test_processed)
+```
+
+Load pre-processed data from hard-disk and use them from here. 
+
+```{r load data and partition, echo=TRUE, message=FALSE, warning=FALSE}
+
+x_train_processed_from_file <- read_csv("data/x_train_processed.csv")
+x_test_processed_from_file <- read_csv("data/x_test_processed.csv")
+
+# if we load data from a file, convert surface to factor
+x_train_processed_from_file <- x_train_processed_from_file %>% mutate(surface = as.factor(surface))
+
+# use a smaller set of datab to save time
+x_train_processed_from_file <- x_train_processed_from_file %>%  slice(1:1000)
+
+
+```
+
+# Feature Analysis
+
+
 
 
 # Fit The Model
