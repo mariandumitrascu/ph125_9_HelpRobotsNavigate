@@ -95,6 +95,7 @@ options(repos="https://CRAN.R-project.org")
 # install.packages("kableExtra")
 # install.packages("doParallel", dependencies = TRUE)
 # install.packages("randomForest", dependencies = TRUE)
+# install.packages("corrplot")
 
 library(tidyverse)
 library(readr)
@@ -105,6 +106,7 @@ library(matrixStats)
 library(randomForest)
 library(RSpincalc)
 library(tictoc)
+library(corrplot)
 
 ```
 
@@ -190,7 +192,7 @@ knitr::include_graphics(path = "image_euler_angles.png")
 ```
 
 
-To convert quaternions to euler angles I used *Q2EA* function in *orientlib* package.(See: https://www.rdocumentation.org/packages/orientlib/versions/0.10.3)
+To convert quaternions to euler angles I used *Q2EA* function from *orientlib* package.(See: https://www.rdocumentation.org/packages/orientlib/versions/0.10.3)
 
 ```{r quaternions to euler, warning=FALSE}
 
@@ -291,7 +293,7 @@ rm(draw_sample, series, draw_set)
 	
 ```
 
-
+I cannot observe obvious differences between paths on carpet vs concrete, but maybe a machine can. An idea would be to convert all paths to images and do an image analysis, but I will stick with a more classical approach for this project. I'll use several models in caret package.
 
 # Data Pre-Processing
 
@@ -498,9 +500,134 @@ x_train_processed_from_file <- x_train_processed_from_file %>%  slice(1:1000)
 
 ```
 
-# Feature Analysis
+## Correlated Predictors
 
 
+```{r load processed data from filees}
+
+# from now we can load pre-processed data from csv files without the need to pre-process again
+x_test_processed <- x_test_processed_from_file
+x_train_processed <- x_train_processed_from_file 
+```
+
+We created `r ncol(x_train_processed) - 3` features, lets trim some of them. I will identify first the ones that are strongly correlated.
+```{r correelation matrix before, fig.retina=3, out.width=8, out.height=9}
+library(RColorBrewer)
+library(corrplot)
+x_matrix <- x_train_processed %>% select(-series_id, -group_id, -surface) %>% 
+	as.matrix()
+x_cor <- cor(x_matrix, use = "pairwise.complete")
+corrplot(x_cor,method = "square", number.cex = .5, tl.cex = 0.6 ,order = "hclust",  title = "Correlation Matrix")
+
+rm(x_matrix, x_cor)
+```
+Using functiom *findCorrelation* nfrom *caret* we can remove features that are highly correlated
+
+```{r correelation matrix after, fig.retina=3, out.width=8, out.height=9}
+
+# convert both test and train data to matrix in order to analyse feature corelation
+x_train_matrix <- x_train_processed %>% select(-surface, -series_id) %>% as.matrix()
+x_test_matrix <- x_test_processed %>% select(-series_id) %>% as.matrix()
+
+# find features that are high correlated 
+# find linear dependencies and eliminate them
+names_to_remove_test <- findCorrelation(cor(x_test_matrix), cutoff = 0.95, names = TRUE, verbose = FALSE, exact=TRUE)
+
+# remove correlated features from both train and test sets
+x_train_processed <- x_train_processed %>% select(-names_to_remove_test) 
+x_test_processed <- x_test_processed %>% select(-names_to_remove_test) 
+
+# draw again the correlation matrix
+x_matrix <- x_train_processed %>% select(-series_id, -group_id, -surface) %>% 
+	as.matrix()
+x_cor <- cor(x_matrix, use = "pairwise.complete")
+corrplot(x_cor,method = "square", number.cex = .5, tl.cex = 0.6 ,order = "hclust",  title = "Correlation Matrix")
+
+rm(x_train_matrix, x_test_matrix, x_matrix, x_cor)
+```
+The number of predictors decreased to `r ncol(x_train_processed)-3`
+
+Another useful technique in pre-processing is centering around means and scaling the predictors:
+```{r centering and scaling}
+
+# pre-process the data, center and scale the values across all predictors
+pre_process <- x_train_processed %>% select(-series_id, -group_id) %>% preProcess(method = c("center", "scale"))
+x_train_processed <- predict(pre_process, x_train_processed)
+x_test_processed <- predict(pre_process, x_test_processed)
+
+rm(pre_process)
+```
+
+## Visualizations
+
+Before moving forward with more feature seelection, I will plot some interesting visualizations of the fetaure dependencies. 
+These are plots of orientation agles as sums over all 128 points. *phi*, *theta* and *psi* are euler orientation angles.
+```{r out.width=7, out.height=5, fig.width=10, fig.height=6}
+x_train_processed %>%  ggplot(aes(phi_mean_all, psi_mean_all, fill = surface)) +
+	geom_point(aes(color = surface)) + 
+	geom_point(cex=6, pch=21) +
+	ggtitle("phi_mean vs. psi_mean")
+
+# this is a circle
+x_train_processed %>%  ggplot(aes(theta_mean_all, psi_mean_all, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21) + 
+	ggtitle("theta_mean vs. psi_mean")
+
+# this is a wave
+x_train_processed %>%  ggplot(aes(theta_mean_all, phi_mean_all, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21) +
+	ggtitle("theta_mean vs. phi_mean")
+
+
+```
+I would specculate that all points that ore not on the global pattern are actually outliers, but I did not explore that hypotesis. 
+
+The following is the angle between *theta* - *psi* vectors and the angular momentum:
+
+```{r, out.width=7, out.height=5, fig.width=10, fig.height=6}
+x_train_processed %>%  ggplot(aes(f2, f3, fill = surface)) +
+	geom_point(aes(color = surface)) +
+	geom_point(cex=6, pch=21) +
+	ggtitle("theta-psi angle vs. angular momentum")
+
+```
+We can see some sparations by surfaces that may allow a KNN modeel to work. In fact if we run KNN for just *surface ~ f2 + f3* we will get an accuracy of 0.56 which is prromising.
+
+## More Feature Selection
+
+I will continue now removing more features based on their importance in a randomForest model. I will split the training set into two partitions: *x_train_for_train* used for training, and *x_train_for_test* to measure the accuracy. 
+Then will plot variable importance. Will not use here any tuning, since tis is not the final model. 
+
+```{r out.width=7, out.height=5, fig.width=10, fig.height=6}
+# partition the data
+# 
+
+
+model_fit <- randomForest(
+	surface ~ ., 
+	metric = "Accuracy", 
+	# remove series_id, group_id and select only 500 points
+	data = slice(select(x_train_for_train, -series_id, -group_id), 1:500)
+	)
+
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
+y_test <- x_train_for_test$surface
+
+# # we dont show accuracy and confusion table for now
+# conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
+# conf_matrix$overall["Accuracy"]
+# conf_matrix$table %>% knitr::kable()
+
+# importance <- importance(model_fit)
+# importance[order(importance[,1], decreasing = TRUE), ]
+varImpPlot(model_fit)
+
+
+```
+We observe following variables does not help prediction too much: theta_mean_to_sd, omega_mean_Z, euler_min
+So I will remove them 
 
 
 # Fit The Model

@@ -326,7 +326,7 @@ x_test_matrix <- x_test_processed %>% select(-series_id) %>% as.matrix()
 # find features that are high correlated 
 # find linear dependencies and eliminate them
 # names_to_removed_train <- findCorrelation(cor(x_train_matrix), cutoff = 0.9, names = TRUE, verbose = FALSE, exact=TRUE)
-names_to_remove_test <- findCorrelation(cor(x_test_matrix), cutoff = 0.85, names = TRUE, verbose = FALSE, exact=TRUE)
+names_to_remove_test <- findCorrelation(cor(x_test_matrix), cutoff = 0.95, names = TRUE, verbose = FALSE, exact=TRUE)
 
 # remove correlated features from both train and test sets
 x_train_processed <- x_train_processed %>% select(-names_to_remove_test) 
@@ -351,18 +351,18 @@ x_test_processed <- x_test_processed %>% select(-phi_mean_to_sd, -dist_mean_x, -
 # create Mahalanobis distance to each of the class centroids
 # see: https://topepo.github.io/caret/pre-processing.html#the-preprocess-function
 # tmp <- x_train_processed %>%
-# 	select(-series_id, -surface) %>%
+# 	select(-series_id, -surface, -group_id) %>%
 # 	as.matrix()
 # 
 # centroids <-	classDist(tmp, x_train_processed$surface, pca = TRUE, keep = 20)
 # 
 # x_train_processed <- bind_cols(x_train_processed,as.data.frame(predict(centroids, x_train_processed)))
 # x_test_processed <- bind_cols(x_test_processed, as.data.frame(predict(centroids, x_test_processed)))
-
-
-# x_train_processed <- bind_cols(select(x_train_processed, series_id, surface, f3, f2),
+# 
+# 
+# x_train_processed <- bind_cols(select(x_train_processed, series_id, group_id, surface, f3, f2),
 # 															as.data.frame(predict(centroids, x_train_processed)))
-# x_test_processed <- bind_cols(select(x_test_processed, series_id, f3, f2), 
+# x_test_processed <- bind_cols(select(x_test_processed, series_id, f3, f2),
 # 															as.data.frame(predict(centroids, x_test_processed)))
 
 # ########################################################################################################
@@ -373,7 +373,10 @@ x_train_for_test <- x_train_processed[test_index, ]
 
 #x_train_for_train_t <- minDiss()
 
-
+# # draw an image of distances between each point to all others
+# x <- x_train_processed %>% arrange(surface) %>%  select(-series_id, -group_id, -surface) %>%  as.matrix()
+# d <- dist(x)
+# image(as.matrix(d), col = rev(RColorBrewer::brewer.pal(9, "RdBu")))
 ```
 
 
@@ -468,9 +471,9 @@ write_csv(x_test_processed_for_submission, "data/submission_C50_02.csv")
 ```{r}
 
 tic(" fit model knn")
-fit <- train(surface ~ . ,  method = "knn", 
+fit <- train(surface ~ f3 + f2 + phi_mean_all + theta_mean_all + psi_mean_all,  method = "knn", 
              tuneGrid = data.frame(k = seq(2, 100, 2)), 
-             data = select(x_train_for_train, -series_id))
+             data = select(x_train_for_train, -series_id, -group_id))
 toc()
 
 ggplot(fit) 
@@ -483,42 +486,42 @@ y_hat <- predict(fit, x_train_for_test, type = "raw")
 conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
 conf_matrix$table
+
+
 ```
 
 ## RPart
 
 ```{r}
-train_rpart <- train(surface ~ ., 
+model_fit <- train(surface ~ ., 
                      method = "rpart",
                      tuneGrid = data.frame(cp = seq(0, 0.075, len = 40)),
-                     data = select(x_train_for_train, -series_id))
-ggplot(train_rpart)
+                     data = select(x_train_for_train, -series_id, -group_id))
+ggplot(model_fit)
 
-confusionMatrix(predict(train_rpart, x_train_for_test), x_train_for_test$surface)$overall["Accuracy"]
+confusionMatrix(predict(model_fit, x_train_for_test), x_train_for_test$surface)$overall["Accuracy"]
 ```
 
 ## Random Forest Untuned
 
 ```{r, fig.height=9, fig.width = 16}
 
-model_fit_RF_untuned <- randomForest(
+model_fit <- randomForest(
 	surface ~ ., 
-	metric = "ROC", 
-	data = slice(select(x_train_for_train, -series_id), 1:500)
+	metric = "Accuracy", 
+	data = slice(select(x_train_for_train, -series_id, -group_id), 1:5000)
 	)
 
-y_hat <- predict(model_fit_RF_untuned, select(x_train_for_test, -series_id))
+y_hat <- predict(model_fit, select(x_train_for_test, -series_id))
 y_test <- x_train_for_test$surface
-
-sum(y_hat == y_test)/nrow(x_train_for_test)
 
 conf_matrix <- confusionMatrix(y_hat, x_train_for_test$surface)
 conf_matrix$overall["Accuracy"]
 conf_matrix$table %>% knitr::kable()
 
-importance <- importance(model_fit_RF_untuned)
-importance[order(importance[,1], decreasing = TRUE), ]
-varImpPlot(model_fit_RF_untuned)
+importance <- importance(model_fit)
+# importance[order(importance[,1], decreasing = TRUE), ]
+varImpPlot(model_fit)
 
 # model_fit_RF_untuned <- randomForest(surface ~ ., data = x_train_processed)
 # 
@@ -528,7 +531,7 @@ varImpPlot(model_fit_RF_untuned)
 # x_test_processed_for_submission <- x_test_processed %>% select(series_id) %>% mutate(surface = y_hat)
 # write_csv(x_test_processed_for_submission, "data/submission_RF_untuned0_02.csv")
 
-rm(model_fit_RF_untuned)
+
 ```
 
 
