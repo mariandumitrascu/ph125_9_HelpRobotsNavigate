@@ -483,7 +483,7 @@ rm(x_train_processed, x_test_processed)
 ```
 
 Load pre-processed data from hard-disk and use them from here. 
-
+In this report I will use a smaller data set from the training data, to make things work faster. Full data set will be used in the final script 
 ```{r load data and partition, echo=TRUE, message=FALSE, warning=FALSE}
 
 x_train_processed_from_file <- read_csv("data/x_train_processed.csv")
