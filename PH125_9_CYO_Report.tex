@@ -24,7 +24,7 @@
 \usepackage[margin=1in]{geometry}
 \usepackage{hyperref}
 \hypersetup{unicode=true,
-            pdftitle={Surface Detection by Robot Movements},
+            pdftitle={Surface Detection by Robot Movements - Report},
             pdfauthor={Marian Dumitrascu},
             pdfborder={0 0 0},
             breaklinks=true}
@@ -115,7 +115,7 @@
 
 \setlength{\droptitle}{-2em}
 
-  \title{Surface Detection by Robot Movements}
+  \title{Surface Detection by Robot Movements - Report}
     \pretitle{\vspace{\droptitle}\centering\huge}
   \posttitle{\par}
     \author{Marian Dumitrascu}
@@ -123,7 +123,7 @@
   \postauthor{\par}
       \predate{\centering\large\emph}
   \postdate{\par}
-    \date{March 19, 2019}
+    \date{March 31, 2019}
 
 \usepackage{float}
 \floatplacement{figure}{H}
@@ -134,7 +134,7 @@
 \hypertarget{introduction}{%
 \section{Introduction}\label{introduction}}
 
-For this project I choosed a Kaggle.com open competion project. This is
+For this project I choose a Kaggle.com open competition project. This is
 \href{https://www.kaggle.com/c/career-con-2019}{\emph{CareerCon 2019 -
 Help Navigate Robots}}. Here is the description of the project from
 Kaggle:
@@ -152,9 +152,9 @@ so they won't fall down on the job.}
 \end{quote}
 
 The task is challenging, but I believe I can obtain a decent result
-using techniques and tools learned in this course. Please note that many
-code chunks are not showing in the PDF for aestetic reasons. You can
-find the code behind many of the graphs and images in the Rmd version.
+using techniques and tools learned in this course. Please note that some
+code chunks are not showing in the PDF for aesthetic reasons. You can
+find all code behind in the .Rmd version.
 
 \hypertarget{report-structure}{%
 \subsection{Report Structure}\label{report-structure}}
@@ -165,14 +165,16 @@ find the code behind many of the graphs and images in the Rmd version.
 \item
   First I will describe data provided and the output expected
 \item
-  Then, will perform data analysis, visualization and get insights
+  then, will perform data analysis, visualization and get insights
 \item
-  pre-process and transform data
+  pre-process and transform data,
 \item
-  decide the model to use, measure its performance and tune it
+  analyse features and selectmost impartant ones
 \item
-  perform the final data prediction and show the results, submit to
-  Kaggle
+  decide the model to use, try KNN, rpart and two flavosrs of
+  randomForest
+\item
+  perform the final data prediction and show the results
 \item
   draw some conclusions
 \end{enumerate}
@@ -180,13 +182,16 @@ find the code behind many of the graphs and images in the Rmd version.
 \hypertarget{report-and-data-location}{%
 \subsection{Report and Data Location}\label{report-and-data-location}}
 
-I also keep this project on GitHub here:
+I keep this project on GitHub at this Url:
 \url{https://github.com/mariandumitrascu/ph125_9_HelpRobotsNavigate}
-Data loaded by the R scripts is kept on an AWS public S3 bucket, to bee
-easily loaded. This will bee available for the duration of grading.
+Data loaded by the R scripts is kept on an AWS public S3 bucket, to be
+easily loaded. This will be available for the duration of the grading.
+
+\hypertarget{the-data}{%
+\section{The Data}\label{the-data}}
 
 \hypertarget{data-description}{%
-\section{Data Description}\label{data-description}}
+\subsection{Data Description}\label{data-description}}
 
 Input data from Kaggle consists in 4 files:
 
@@ -248,7 +253,7 @@ Input data from Kaggle consists in 4 files:
     recording session. Provided for the training set only, to enable
     more cross validation strategies.
   \item
-    \emph{surface}: lables or classes of the training data. this is the
+    \emph{surface}: labels or classes of the training data. this is the
     element that need to be predicted
   \end{itemize}
 \item
@@ -258,11 +263,11 @@ Input data from Kaggle consists in 4 files:
 
 In this report I will split the training data into two partitions, will
 fit a model on the first one, and measure it's accuracy on the second. I
-will also use a small part of data to make it run faster. The R script
-for generating the final resuls will use all data.
+will use a small part of data to make it run faster. The R script for
+generating the final results will use all data.
 
 \hypertarget{data-analysis}{%
-\section{Data Analysis}\label{data-analysis}}
+\subsection{Data Analysis}\label{data-analysis}}
 
 I will make the following assumptions about observations:
 
@@ -271,23 +276,21 @@ I will make the following assumptions about observations:
 \item
   all observations are made using the same robot
 \item
-  the interval between the 128 observations for each seeries is always
+  the interval between the 128 observations for each series is always
   the same.
 \item
   the surface is a plane, no stairs, hills or valleys
 \end{itemize}
 
-From a physicyst perspective there are thre forces involved: gravitation
-force, robot propulsion force, and friction force. Gravitation force is
-constant. Friction force depends on the surface by a coefficient and
-propulsion is an unknown variable. We need to basically determine the
-friction coeficient based on a movement pattern. Moving objects will
-travel longer if the surface has a lower friction than on a surface with
-higher friction. On the other side, changing direction can be teeper on
-a surface with higher friction.
-
-\hypertarget{first-insights}{%
-\subsection{First Insights}\label{first-insights}}
+From a physicist perspective there are three forces involved:
+gravitation force, robot propulsion force, and friction force.
+Gravitation force is constant. Friction force depends on the surface by
+a coefficient and propulsion is an unknown variable. We need to
+basically determine the friction coefficient based on a movement
+pattern. Moving objects will travel longer if the surface has a lower
+friction than on a surface with higher friction. On the other side,
+changing direction can be slower on a surface with higher friction such
+as carpet.
 
 Quick look at the first 5 rows of the training data:
 
@@ -321,7 +324,7 @@ fine\_concrete\tabularnewline
 \hypertarget{data-distribution}{%
 \subsection{Data Distribution}\label{data-distribution}}
 
-Here is a distributon of measurements by surface in the training set:
+Here is a distribution of measurements by surface in the training set:
 
 \begin{longtable}[]{@{}lr@{}}
 \toprule
@@ -340,13 +343,16 @@ wood & 607\tabularnewline
 \bottomrule
 \end{longtable}
 
+We can see that we deal with an unbalanced data set. \emph{hard\_tiles}
+have only 21 records while \emph{concrete} 779
+
 Angular velocity data is produced by a magnetostatic sensor, it
-indicates the angular speed the robot is movig in reference with earth
+indicates the angular speed the robot is moving in reference with earth
 orientation. Here is the distribution of angular velocity by surface:
 
 \includegraphics{PH125_9_CYO_Report_files/figure-latex/angular velocities distrib-1.pdf}
 Linear acceleration data is produced by an inertial sensor. We can
-approximate this later with linear distacne if we consider the unit of
+approximate this later with linear distance if we consider the unit of
 time to be 1. Here is the distribution of linear acceleration by
 surface:
 
@@ -354,7 +360,7 @@ surface:
 We can observe noticeable differences in distribution of these variables
 by surface.
 
-Orientation data comes from a gyroscop sensor. To draw the distribution
+Orientation data comes from a gyroscope sensor. To draw the distribution
 of orientation, we'll convert quaternion values to euler angles which
 are more intuitive and easier to interpret. Euler angles provide a way
 to represent the 3D orientation of an object using a combination of
@@ -370,7 +376,7 @@ three rotations about different axes:
   yaw - rotation around z, noted \emph{psi}
 \end{itemize}
 
-See theimage below (from:
+See the image below (from:
 \url{http://www.chrobotics.com/library/understanding-euler-angles})
 
 \begin{figure}
@@ -440,14 +446,14 @@ of these paths.
 I cannot observe obvious differences between paths on carpet vs
 concrete, but maybe a machine can. An idea would be to convert all paths
 to images and do an image analysis, but I will stick with a more
-classical approach for this project. I'll use several models in caret
-package.
+classical approach for this project. I'll use several models from caret
+package: \emph{KNN}, \emph{rpart} and \emph{randomForest.}
 
 \hypertarget{data-pre-processing}{%
-\section{Data Pre-Processing}\label{data-pre-processing}}
+\subsection{Data Pre-Processing}\label{data-pre-processing}}
 
 An important step in fitting a good model is pre-processing the data. In
-our case we havee series of observation of 128 measurements. In this
+our case we have series of observation of 128 measurements. In this
 section I will create aggregations around these measurements. These are:
 mean, standard deviation, distances of segments from one point to the
 next. total distance, total angle change both from magnetostatic and
@@ -612,34 +618,50 @@ gyro sensors. All of these are encapsulated in the following function:
 \end{Shaded}
 
 Pre-process the data and save it to a local file. This is to save time
-for further analysis by skipping the pre-processing procedure. I use
+for further analysis by skipping the pre-processing procedure. I'm using
 \emph{tic()} \emph{toc()} functions from \emph{tictoc} package to
 display processing time.
 
 \begin{Shaded}
 \begin{Highlighting}[]
 \CommentTok{# pre-process train and test data sets}
-\CommentTok{# tic("process train data")}
-\CommentTok{# x_train_processed <- pre_process(x_train)}
-\CommentTok{# toc()}
-\CommentTok{# }
-\CommentTok{# tic("process test data")}
-\CommentTok{# x_test_processed <- pre_process(x_test)}
-\CommentTok{# toc()}
-\CommentTok{# }
-\CommentTok{# # rejoin train data with the labels data set}
-\CommentTok{# x_train_processed <- x_train_processed %>% left_join(y_train, by = "series_id")}
-\CommentTok{# }
-\CommentTok{# # creeatee a folder "data" if doesnt exist}
-\CommentTok{# if (!dir.exists("data")) dir.create("data")}
-\CommentTok{# }
-\CommentTok{# # save processed data, and use these files from now on}
-\CommentTok{# write_csv(x_train_processed, "data/x_train_processed.csv")}
-\CommentTok{# write_csv(x_test_processed, "data/x_test_processed.csv")}
-\CommentTok{# }
-\CommentTok{# # clean some variables and the environment}
-\CommentTok{# rm(x_train, x_test, y_train)}
-\CommentTok{# rm(x_train_processed, x_test_processed)}
+\KeywordTok{tic}\NormalTok{(}\StringTok{"process train data"}\NormalTok{)}
+\NormalTok{x_train_processed <-}\StringTok{ }\KeywordTok{pre_process}\NormalTok{(x_train)}
+\KeywordTok{toc}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## process train data: 46.08 sec elapsed
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{tic}\NormalTok{(}\StringTok{"process test data"}\NormalTok{)}
+\NormalTok{x_test_processed <-}\StringTok{ }\KeywordTok{pre_process}\NormalTok{(x_test)}
+\KeywordTok{toc}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## process test data: 44.36 sec elapsed
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# rejoin train data with the labels data set}
+\NormalTok{x_train_processed <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{left_join}\NormalTok{(y_train, }\DataTypeTok{by =} \StringTok{"series_id"}\NormalTok{)}
+
+\CommentTok{# create a folder "data" if doesnt exist}
+\ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\KeywordTok{dir.exists}\NormalTok{(}\StringTok{"data"}\NormalTok{)) }\KeywordTok{dir.create}\NormalTok{(}\StringTok{"data"}\NormalTok{)}
+
+\CommentTok{# save processed data, and use these files from now on}
+\KeywordTok{write_csv}\NormalTok{(x_train_processed, }\StringTok{"data/x_train_processed.csv"}\NormalTok{)}
+\KeywordTok{write_csv}\NormalTok{(x_test_processed, }\StringTok{"data/x_test_processed.csv"}\NormalTok{)}
+
+\CommentTok{# clean some variables and the environment}
+\KeywordTok{rm}\NormalTok{(x_train, x_test, y_train)}
+\KeywordTok{rm}\NormalTok{(x_train_processed, x_test_processed)}
 \end{Highlighting}
 \end{Shaded}
 
@@ -671,8 +693,8 @@ things work faster. Full data set will be used in the final script
 \end{Highlighting}
 \end{Shaded}
 
-We created 65 features, lets trim some of them. I will identify first
-the ones that are strongly correlated.
+We created 65 features, lets trim some of them. First, I will identify
+those that are strongly correlated. Lets plot the correlation matrix:
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -693,7 +715,7 @@ the ones that are strongly correlated.
 \end{Highlighting}
 \end{Shaded}
 
-Using functiom \emph{findCorrelation} nfrom \emph{caret} we can remove
+Using function \emph{findCorrelation} from \emph{caret} we can remove
 features that are highly correlated
 
 \begin{Shaded}
@@ -742,12 +764,12 @@ scaling the predictors:
 \end{Highlighting}
 \end{Shaded}
 
-\hypertarget{visualizations}{%
-\subsection{Visualizations}\label{visualizations}}
+\hypertarget{data-visualization}{%
+\subsection{Data Visualization}\label{data-visualization}}
 
-Before moving forward with more feature seelection, I will plot some
-interesting visualizations of the fetaure dependencies. These are plots
-of orientation agles as sums over all 128 points. \emph{phi},
+Before moving forward with more feature selection, I will plot some
+interesting visualizations of the feature dependencies. These are plots
+of orientation angles as sums over all 128 points. \emph{phi},
 \emph{theta} and \emph{psi} are euler orientation angles.
 
 \begin{Shaded}
@@ -763,7 +785,6 @@ of orientation agles as sums over all 128 points. \emph{phi},
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\CommentTok{# this is a circle}
 \NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{  }\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{aes}\NormalTok{(theta_mean_all, psi_mean_all, }\DataTypeTok{fill =}\NormalTok{ surface)) }\OperatorTok{+}
 \StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color =}\NormalTok{ surface)) }\OperatorTok{+}
 \StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\DataTypeTok{cex=}\DecValTok{6}\NormalTok{, }\DataTypeTok{pch=}\DecValTok{21}\NormalTok{) }\OperatorTok{+}\StringTok{ }
@@ -775,7 +796,6 @@ of orientation agles as sums over all 128 points. \emph{phi},
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\CommentTok{# this is a wave}
 \NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{  }\KeywordTok{ggplot}\NormalTok{(}\KeywordTok{aes}\NormalTok{(theta_mean_all, phi_mean_all, }\DataTypeTok{fill =}\NormalTok{ surface)) }\OperatorTok{+}
 \StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\KeywordTok{aes}\NormalTok{(}\DataTypeTok{color =}\NormalTok{ surface)) }\OperatorTok{+}
 \StringTok{    }\KeywordTok{geom_point}\NormalTok{(}\DataTypeTok{cex=}\DecValTok{6}\NormalTok{, }\DataTypeTok{pch=}\DecValTok{21}\NormalTok{) }\OperatorTok{+}
@@ -784,8 +804,8 @@ of orientation agles as sums over all 128 points. \emph{phi},
 \end{Shaded}
 
 \includegraphics{PH125_9_CYO_Report_files/figure-latex/euler visualizations-3.pdf}
-I would specculate that all points that ore not on the global pattern
-are actually outliers, but I did not explore that hypotesis.
+I would speculate that all points that are not on the global pattern are
+actually outlines, but I did not explore that hypothesis.
 
 The following is the angle between \emph{theta} - \emph{psi} vectors and
 the angular momentum:
@@ -800,9 +820,9 @@ the angular momentum:
 \end{Shaded}
 
 \includegraphics{PH125_9_CYO_Report_files/figure-latex/theta psi and momentum-1.pdf}
-We can see some sparations by surfaces that may allow a KNN model to
+We can see some separations by surfaces that may allow a KNN model to
 work. In fact if we run KNN for just \emph{surface \textasciitilde{} f2
-+ f3} we will get an accuracy of 0.56 which is prromising.
++ f3} we will get an accuracy of 0.56 which is promising.
 
 \hypertarget{more-feature-selection}{%
 \subsection{More Feature Selection}\label{more-feature-selection}}
@@ -811,7 +831,7 @@ I will continue now removing more features based on their importance in
 a randomForest model. I will split the training set into two partitions:
 \emph{x\_train\_for\_train} used for training, and
 \emph{x\_train\_for\_test} to measure the accuracy. Then will plot
-variable importance. Will not use here any tuning, since tis is not the
+variable importance. Will not use here any tuning, since this is not the
 final model.
 
 \begin{Shaded}
@@ -855,8 +875,9 @@ final model.
 \end{Shaded}
 
 We observe following variables does not help prediction too much:
-theta\_min, omega\_max\_to\_min, dist\_mean\_y, omega\_mean\_x,
-dist\_mean\_x, dist\_mean\_z So I will remove them:
+\emph{theta\_min}, \emph{omega\_max\_to\_min}, \emph{dist\_mean\_y},
+\emph{omega\_mean\_x}, \emph{dist\_mean\_x}, \emph{dist\_mean\_z} So I
+will remove them:
 
 \begin{Shaded}
 \begin{Highlighting}[]
@@ -866,8 +887,8 @@ dist\_mean\_x, dist\_mean\_z So I will remove them:
 \end{Highlighting}
 \end{Shaded}
 
-\hypertarget{find-the-best-model}{%
-\section{Find the Best Model}\label{find-the-best-model}}
+\hypertarget{the-model}{%
+\section{The Model}\label{the-model}}
 
 It is time now to fit some models. I tried many models on the side but I
 will present in this report only
@@ -877,29 +898,28 @@ will present in this report only
 \item
   KNN,
 \item
-  rpart,\\
+  rpart,
 \item
-  randomForest
+  randomForest,
 \item
-  randomForest asembly
+  randomForest assembly
 \end{itemize}
 
-Please nothe that the code in this report is using only 1000 records
-from training, that is further partitioned in train and test with 0.5
-ratio I'vee done this to mke it run faster. I am using full data set in
-the R script and also I will present the final results from Kaggle.
+Please note that the code in this report is using only 1000 records from
+training, that is further partitioned in train and test with 0.5 ratio
+I've done this to make it run faster. I am using full data set in the R
+script and also I will present the final results from Kaggle (i think I
+said this before).
 
-\hypertarget{knn}{%
-\section{KNN}\label{knn}}
+\hypertarget{knn-model}{%
+\subsection{KNN Model}\label{knn-model}}
 
-KNN is getting incrementaly slow with the number of features. So for KNN
-I used only the most important variables as part of the formula.
+KNN is getting incrementally slower with the number of features. So for
+KNN I used only the most important variables as part of the formula.
 
 \begin{Shaded}
 \begin{Highlighting}[]
-\CommentTok{# create a data frame to store Accuracy results by model}
-\NormalTok{model_results <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{method =} \StringTok{"Model"}\NormalTok{, }\DataTypeTok{accuracy =} \StringTok{"Accuracy"}\NormalTok{)}
-
+\CommentTok{# use most important variables to fit KNN}
 \NormalTok{model_fit <-}\StringTok{ }\KeywordTok{train}\NormalTok{(surface }\OperatorTok{~}\StringTok{ }\NormalTok{f3 }\OperatorTok{+}\StringTok{ }\NormalTok{f2 }\OperatorTok{+}\StringTok{ }\NormalTok{phi_mean_all }\OperatorTok{+}\StringTok{ }\NormalTok{theta_mean_all }\OperatorTok{+}\StringTok{ }\NormalTok{psi_mean_all,  }\DataTypeTok{method =} \StringTok{"knn"}\NormalTok{, }
              \DataTypeTok{tuneGrid =} \KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{k =} \KeywordTok{seq}\NormalTok{(}\DecValTok{2}\NormalTok{, }\DecValTok{100}\NormalTok{, }\DecValTok{2}\NormalTok{)), }
              \DataTypeTok{data =} \KeywordTok{select}\NormalTok{(x_train_for_train, }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id))}
@@ -913,7 +933,7 @@ I used only the most important variables as part of the formula.
 \begin{Shaded}
 \begin{Highlighting}[]
 \CommentTok{# get confusion matrix and display it together with the results}
-\NormalTok{y_hat <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model_fit, x_train_for_test, }\DataTypeTok{type =} \StringTok{"raw"}\NormalTok{)}
+\NormalTok{y_hat <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model_fit, }\KeywordTok{select}\NormalTok{(x_train_for_test, }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id), }\DataTypeTok{type =} \StringTok{"raw"}\NormalTok{)}
 \NormalTok{conf_matrix <-}\StringTok{ }\KeywordTok{confusionMatrix}\NormalTok{(y_hat, x_train_for_test}\OperatorTok{$}\NormalTok{surface)}
 
 \CommentTok{# display confusion matrix}
@@ -943,37 +963,496 @@ wood & 0 & 2 & 2 & 0 & 1 & 2 & 1 & 9 & 47\tabularnewline
 
 \begin{Shaded}
 \begin{Highlighting}[]
+\CommentTok{# create a data frame to store Accuracy results by model}
+\NormalTok{model_results <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{Model =} \StringTok{"KNN"}\NormalTok{, }\DataTypeTok{Accuracy =}\NormalTok{ conf_matrix}\OperatorTok{$}\NormalTok{overall[}\StringTok{"Accuracy"}\NormalTok{])}
+\NormalTok{model_results }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}llr@{}}
+\toprule
+& Model & Accuracy\tabularnewline
+\midrule
+\endhead
+Accuracy & KNN & 0.7645108\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{rpart-model}{%
+\subsection{rpart Model}\label{rpart-model}}
+
+Another model I tried is rpart (Recursive Partitioning And Regression
+Tree). I will tune it on the complexity coeficient
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{model_fit <-}\StringTok{ }\KeywordTok{train}\NormalTok{(surface }\OperatorTok{~}\StringTok{ }\NormalTok{., }
+                     \DataTypeTok{method =} \StringTok{"rpart"}\NormalTok{,}
+                     \DataTypeTok{tuneGrid =} \KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{cp =} \KeywordTok{seq}\NormalTok{(}\DecValTok{0}\NormalTok{, }\FloatTok{0.075}\NormalTok{, }\DataTypeTok{len =} \DecValTok{40}\NormalTok{)),}
+                     \DataTypeTok{data =} \KeywordTok{select}\NormalTok{(x_train_for_train, }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id))}
+\KeywordTok{ggplot}\NormalTok{(model_fit)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/rpart-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# get confusion matrix and display it together with the results}
+\NormalTok{y_hat <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model_fit, }\KeywordTok{select}\NormalTok{(x_train_for_test, }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id), }\DataTypeTok{type =} \StringTok{"raw"}\NormalTok{)}
+\NormalTok{conf_matrix <-}\StringTok{ }\KeywordTok{confusionMatrix}\NormalTok{(y_hat, x_train_for_test}\OperatorTok{$}\NormalTok{surface)}
+
+\CommentTok{# display confusion matrix}
+\NormalTok{conf_matrix}\OperatorTok{$}\NormalTok{table }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}lrrrrrrrrr@{}}
+\toprule
+& carpet & concrete & fine\_concrete & hard\_tiles &
+hard\_tiles\_large\_space & soft\_pvc & soft\_tiles & tiled &
+wood\tabularnewline
+\midrule
+\endhead
+carpet & 11 & 4 & 0 & 0 & 1 & 3 & 0 & 3 & 9\tabularnewline
+concrete & 3 & 83 & 0 & 0 & 0 & 3 & 0 & 2 & 4\tabularnewline
+fine\_concrete & 0 & 0 & 28 & 1 & 0 & 4 & 2 & 1 & 4\tabularnewline
+hard\_tiles & 1 & 2 & 5 & 7 & 1 & 0 & 0 & 1 & 0\tabularnewline
+hard\_tiles\_large\_space & 0 & 2 & 0 & 0 & 23 & 3 & 0 & 5 &
+5\tabularnewline
+soft\_pvc & 17 & 4 & 5 & 0 & 0 & 116 & 11 & 11 & 4\tabularnewline
+soft\_tiles & 0 & 0 & 5 & 0 & 10 & 8 & 85 & 0 & 0\tabularnewline
+tiled & 2 & 0 & 0 & 0 & 0 & 0 & 4 & 40 & 6\tabularnewline
+wood & 4 & 7 & 0 & 0 & 2 & 0 & 0 & 5 & 36\tabularnewline
+\bottomrule
+\end{longtable}
+
+\begin{Shaded}
+\begin{Highlighting}[]
 \NormalTok{model_results <-}\StringTok{ }\KeywordTok{bind_rows}\NormalTok{(model_results,}
-                           \KeywordTok{data.frame}\NormalTok{(}
-                             \DataTypeTok{method =} \StringTok{"KNN"}\NormalTok{,}
-                             \DataTypeTok{accuracy =} \KeywordTok{as.character}\NormalTok{(conf_matrix}\OperatorTok{$}\NormalTok{overall[}\StringTok{"Accuracy"}\NormalTok{])))}
+                           \KeywordTok{data_frame}\NormalTok{(}
+                             \DataTypeTok{Model =} \StringTok{"rpart"}\NormalTok{,}
+                             \DataTypeTok{Accuracy =}\NormalTok{ conf_matrix}\OperatorTok{$}\NormalTok{overall[}\StringTok{"Accuracy"}\NormalTok{]))}
+\NormalTok{model_results }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}lr@{}}
+\toprule
+Model & Accuracy\tabularnewline
+\midrule
+\endhead
+KNN & 0.7645108\tabularnewline
+rpart & 0.7114428\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{randomforest-model}{%
+\subsection{RandomForest Model}\label{randomforest-model}}
+
+For randomForest model I choose to customize it and try optimization
+over \emph{mtry} (\textasciitilde max number of ramifications) and
+\emph{ntree} (max number of forests to grow) parameters. I got the way
+of customization from following article about tuning randomForests:
+\url{https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/}
+This may take several minutes to run
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# use cross validation 5 folds and repeated twice}
+\NormalTok{control <-}\StringTok{ }\KeywordTok{trainControl}\NormalTok{(}\DataTypeTok{method=}\StringTok{"repeatedcv"}\NormalTok{, }\DataTypeTok{number=}\DecValTok{5}\NormalTok{, }\DataTypeTok{repeats=}\DecValTok{2}\NormalTok{, }\DataTypeTok{search=}\StringTok{"grid"}\NormalTok{)}
+
+\NormalTok{metric <-}\StringTok{ "Accuracy"}
+
+\CommentTok{# mtry <- sqrt(ncol(x_train_for_train) - 1)}
+
+\NormalTok{mtry <-}\StringTok{ }\DecValTok{5}\OperatorTok{:}\DecValTok{8}
+\NormalTok{tunegrid <-}\StringTok{ }\KeywordTok{expand.grid}\NormalTok{(}\DataTypeTok{.mtry=}\NormalTok{mtry,}\DataTypeTok{.ntree=}\KeywordTok{c}\NormalTok{(}\DecValTok{100}\NormalTok{, }\DecValTok{200}\NormalTok{, }\DecValTok{500}\NormalTok{, }\DecValTok{1000}\NormalTok{, }\DecValTok{1500}\NormalTok{))}
+
+\CommentTok{# tunegrid <- expand.grid(.mtry=c(1:10))}
+
+\NormalTok{customRF                <-}\StringTok{  }\KeywordTok{list}\NormalTok{(}\DataTypeTok{type =} \StringTok{"Classification"}\NormalTok{, }\DataTypeTok{library =} \StringTok{"randomForest"}\NormalTok{, }\DataTypeTok{loop =} \OtherTok{NULL}\NormalTok{)}
+\NormalTok{customRF}\OperatorTok{$}\NormalTok{parameters <-}\StringTok{  }\KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{parameter =} \KeywordTok{c}\NormalTok{(}\StringTok{"mtry"}\NormalTok{, }\StringTok{"ntree"}\NormalTok{), }\DataTypeTok{class =} \KeywordTok{rep}\NormalTok{(}\StringTok{"numeric"}\NormalTok{, }\DecValTok{2}\NormalTok{), }\DataTypeTok{label =} \KeywordTok{c}\NormalTok{(}\StringTok{"mtry"}\NormalTok{, }\StringTok{"ntree"}\NormalTok{))}
+\NormalTok{customRF}\OperatorTok{$}\NormalTok{grid           <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x, y, }\DataTypeTok{len =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{search =} \StringTok{"grid"}\NormalTok{) \{\}}
+\NormalTok{customRF}\OperatorTok{$}\NormalTok{fit            <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x, y, wts, param, lev, last, weights, classProbs, ...) }\KeywordTok{randomForest}\NormalTok{(x, y, }\DataTypeTok{mtry =}\NormalTok{ param}\OperatorTok{$}\NormalTok{mtry, }\DataTypeTok{ntree=}\NormalTok{param}\OperatorTok{$}\NormalTok{ntree, ...)}
+\NormalTok{customRF}\OperatorTok{$}\NormalTok{predict        <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(modelFit, newdata, }\DataTypeTok{preProc =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{submodels =} \OtherTok{NULL}\NormalTok{) }\KeywordTok{predict}\NormalTok{(modelFit, newdata)}
+\NormalTok{customRF}\OperatorTok{$}\NormalTok{prob           <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(modelFit, newdata, }\DataTypeTok{preProc =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{submodels =} \OtherTok{NULL}\NormalTok{)   }\KeywordTok{predict}\NormalTok{(modelFit, newdata, }\DataTypeTok{type =} \StringTok{"prob"}\NormalTok{)}
+\NormalTok{customRF}\OperatorTok{$}\NormalTok{sort           <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x) x[}\KeywordTok{order}\NormalTok{(x[,}\DecValTok{1}\NormalTok{]),]}
+\NormalTok{customRF}\OperatorTok{$}\NormalTok{levels         <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x) x}\OperatorTok{$}\NormalTok{surface}
+
+
+\NormalTok{model_fit <-}\StringTok{ }\KeywordTok{train}\NormalTok{(surface }\OperatorTok{~}\StringTok{ }\NormalTok{., }
+        \DataTypeTok{data =} \KeywordTok{select}\NormalTok{(x_train_for_train, }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id), }
+        \DataTypeTok{method=}\NormalTok{customRF, }
+        \DataTypeTok{metric=}\NormalTok{metric, }
+        \DataTypeTok{tuneGrid=}\NormalTok{tunegrid, }
+        \DataTypeTok{trControl=}\NormalTok{control}
+\NormalTok{        )}
+\KeywordTok{print}\NormalTok{(model_fit)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 597 samples
+##  42 predictor
+##   9 classes: 'carpet', 'concrete', 'fine_concrete', 'hard_tiles', 'hard_tiles_large_space', 'soft_pvc', 'soft_tiles', 'tiled', 'wood' 
+## 
+## No pre-processing
+## Resampling: Cross-Validated (5 fold, repeated 2 times) 
+## Summary of sample sizes: 480, 475, 479, 478, 476, 475, ... 
+## Resampling results across tuning parameters:
+## 
+##   mtry  ntree  Accuracy   Kappa    
+##   5      100   0.7828726  0.7424711
+##   5      200   0.7761617  0.7342551
+##   5      500   0.7820729  0.7414457
+##   5     1000   0.7803228  0.7391758
+##   5     1500   0.7778715  0.7362735
+##   6      100   0.7878016  0.7482006
+##   6      200   0.7830117  0.7425325
+##   6      500   0.7836643  0.7433908
+##   6     1000   0.7878719  0.7482775
+##   6     1500   0.7819892  0.7415225
+##   7      100   0.7796646  0.7384379
+##   7      200   0.7853371  0.7453407
+##   7      500   0.7820524  0.7414582
+##   7     1000   0.7869695  0.7475188
+##   7     1500   0.7870038  0.7475757
+##   8      100   0.7863243  0.7469293
+##   8      200   0.7837252  0.7436429
+##   8      500   0.7911847  0.7525742
+##   8     1000   0.7903872  0.7517433
+##   8     1500   0.7912409  0.7526166
+## 
+## Accuracy was used to select the optimal model using the largest value.
+## The final values used for the model were mtry = 8 and ntree = 1500.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\KeywordTok{plot}\NormalTok{(model_fit)}
+\end{Highlighting}
+\end{Shaded}
+
+\includegraphics{PH125_9_CYO_Report_files/figure-latex/randomForest one vs one-1.pdf}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{y_hat <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model_fit, }\KeywordTok{select}\NormalTok{(x_train_for_test, }\OperatorTok{-}\NormalTok{series_id))}
+\NormalTok{y_test <-}\StringTok{ }\NormalTok{x_train_for_test}\OperatorTok{$}\NormalTok{surface}
+
+\CommentTok{# get confusion matrix and display it together with the results}
+\NormalTok{y_hat <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(model_fit, x_train_for_test, }\DataTypeTok{type =} \StringTok{"raw"}\NormalTok{)}
+\NormalTok{conf_matrix <-}\StringTok{ }\KeywordTok{confusionMatrix}\NormalTok{(y_hat, x_train_for_test}\OperatorTok{$}\NormalTok{surface)}
+
+\CommentTok{# display confusion matrix}
+\NormalTok{conf_matrix}\OperatorTok{$}\NormalTok{table }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}lrrrrrrrrr@{}}
+\toprule
+& carpet & concrete & fine\_concrete & hard\_tiles &
+hard\_tiles\_large\_space & soft\_pvc & soft\_tiles & tiled &
+wood\tabularnewline
+\midrule
+\endhead
+carpet & 12 & 1 & 0 & 0 & 1 & 2 & 0 & 1 & 1\tabularnewline
+concrete & 4 & 94 & 0 & 0 & 0 & 4 & 1 & 0 & 3\tabularnewline
+fine\_concrete & 0 & 2 & 35 & 0 & 2 & 1 & 0 & 0 & 1\tabularnewline
+hard\_tiles & 1 & 0 & 0 & 7 & 0 & 0 & 0 & 0 & 0\tabularnewline
+hard\_tiles\_large\_space & 0 & 0 & 0 & 0 & 27 & 2 & 0 & 0 &
+0\tabularnewline
+soft\_pvc & 15 & 2 & 3 & 0 & 2 & 123 & 7 & 7 & 0\tabularnewline
+soft\_tiles & 0 & 0 & 5 & 1 & 2 & 4 & 92 & 0 & 1\tabularnewline
+tiled & 3 & 1 & 0 & 0 & 1 & 1 & 1 & 53 & 3\tabularnewline
+wood & 3 & 2 & 0 & 0 & 2 & 0 & 1 & 7 & 59\tabularnewline
+\bottomrule
+\end{longtable}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{model_results <-}\StringTok{ }\KeywordTok{bind_rows}\NormalTok{(model_results,}
+                           \KeywordTok{data_frame}\NormalTok{(}
+                             \DataTypeTok{Model =} \StringTok{"randomForest"}\NormalTok{,}
+                             \DataTypeTok{Accuracy =}\NormalTok{ conf_matrix}\OperatorTok{$}\NormalTok{overall[}\StringTok{"Accuracy"}\NormalTok{]))}
+\NormalTok{model_results }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}lr@{}}
+\toprule
+Model & Accuracy\tabularnewline
+\midrule
+\endhead
+KNN & 0.7645108\tabularnewline
+rpart & 0.7114428\tabularnewline
+randomForest & 0.8325041\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{final-model-randomforest-one-vs-one}{%
+\subsection{Final model: randomForest
+one-vs-one}\label{final-model-randomforest-one-vs-one}}
+
+For the final model I choose a \emph{one-vs-one} approach. Where I fit a
+model for each class. For this I loop over each of surfaces, rename all
+others to \emph{the\_rest} then I fit a randomForest model for each
+surface. I'm recording the results as probabilities in a table with
+surfaces as columns, and probability of the class as values. This would
+be a very unbalanced class. To balance it, I create a 3rd set of data,
+called \emph{x\_train\_pool} and move some records of the current class
+from it into current training data set. I save each model in a folder
+called \emph{models}. To predict, I'm looping over each surface in the
+test set and store the result as probabilities. The one with highest
+probability will determine the class for each point.
+
+I use ROC as the metric to measure model performance. Accuracy wont be
+the best for this heavy unbalanced data set. This will take significant
+amount of time even if I tried to use minimum set of tuning options.
+
+Here is the code:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# store the train data in a new variable}
+\NormalTok{x_train_processed_ova <-}\StringTok{ }\NormalTok{x_train_processed }
+
+\CommentTok{# a prefix to save models on file system}
+\NormalTok{model_prefix <-}\StringTok{ "model_14_fit_"}
+
+\CommentTok{# create a subfolder called "models if it doesnt exists"}
+\ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\KeywordTok{dir.exists}\NormalTok{(}\StringTok{"models"}\NormalTok{)) }\KeywordTok{dir.create}\NormalTok{(}\StringTok{"models"}\NormalTok{)}
+
+\CommentTok{# partition data into:train, test, and balancing pool}
+\CommentTok{# we will use the pool to extract records to balance the dataset}
+\NormalTok{folds <-}\StringTok{ }\KeywordTok{createFolds}\NormalTok{(x_train_processed_ova}\OperatorTok{$}\NormalTok{surface, }\DataTypeTok{k =} \DecValTok{3}\NormalTok{, }\DataTypeTok{list =} \OtherTok{TRUE}\NormalTok{)}
+\NormalTok{x_train_for_train_ova <-}\StringTok{ }\NormalTok{x_train_processed_ova[folds}\OperatorTok{$}\NormalTok{Fold1,]}
+\NormalTok{x_train_for_test_ova <-}\StringTok{ }\NormalTok{x_train_processed_ova[folds}\OperatorTok{$}\NormalTok{Fold2,]}
+\NormalTok{x_train_pool <-}\StringTok{ }\NormalTok{x_train_processed_ova[folds}\OperatorTok{$}\NormalTok{Fold3,]}
+
+\CommentTok{# get surfaces in a data frame, so we can loop over}
+\NormalTok{surfaces <-}\StringTok{ }\NormalTok{x_train_for_train_ova }\OperatorTok{%>%}\StringTok{ }\KeywordTok{group_by}\NormalTok{(surface) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{summarize}\NormalTok{(}\DataTypeTok{n =} \KeywordTok{n}\NormalTok{()) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{as.character}\NormalTok{(surface)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\CommentTok{# filter(surface == "hard_tiles") %>% }
+\StringTok{    }\KeywordTok{arrange}\NormalTok{(n)}
+
+\CommentTok{# idealy, I should use apply function but I'm still working on that}
+\CommentTok{# this can bee also be improved if I would use foreacch packade with %dopar% option for parallelization.,}
+\CommentTok{# still work in progress}
+\ControlFlowTok{for}\NormalTok{(current_surface }\ControlFlowTok{in}\NormalTok{ surfaces}\OperatorTok{$}\NormalTok{surface)}
+\NormalTok{\{}
+        \CommentTok{# convert surface to two values: current surface and "the_rest"}
+\NormalTok{        x_train_for_train_ova_current <-}\StringTok{ }\NormalTok{x_train_for_train_ova }\OperatorTok{%>%}\StringTok{ }
+\StringTok{            }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{ifelse}\NormalTok{(surface }\OperatorTok{==}\StringTok{ }\NormalTok{current_surface, current_surface, }\StringTok{"the_rest"}\NormalTok{)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{            }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{as.factor}\NormalTok{(surface))}
+        
+        \CommentTok{# add records from the pool to balance the recordset}
+\NormalTok{        x_chunk_for_balance <-}\StringTok{ }\NormalTok{x_train_pool }\OperatorTok{%>%}\StringTok{ }\KeywordTok{filter}\NormalTok{(surface }\OperatorTok{==}\StringTok{ }\NormalTok{current_surface)}
+\NormalTok{        x_train_for_train_ova_current <-}\StringTok{ }\KeywordTok{bind_rows}\NormalTok{(x_train_for_train_ova_current, x_chunk_for_balance)}
+        
+        \CommentTok{###################################################################################################}
+        \CommentTok{# custom randomForest}
+        \CommentTok{# }
+\NormalTok{        mtry <-}\StringTok{ }\KeywordTok{sqrt}\NormalTok{(}\KeywordTok{ncol}\NormalTok{(x_train_for_train_ova_current) }\OperatorTok{-}\StringTok{ }\DecValTok{1}\NormalTok{)}
+\NormalTok{        tunegrid <-}\StringTok{ }\KeywordTok{expand.grid}\NormalTok{(}\DataTypeTok{.mtry=}\NormalTok{mtry,}\DataTypeTok{.ntree=}\KeywordTok{c}\NormalTok{( }\DecValTok{300}\NormalTok{,}\DecValTok{500}\NormalTok{, }\DecValTok{1000}\NormalTok{))}
+\NormalTok{        control <-}\StringTok{ }\KeywordTok{trainControl}\NormalTok{(}\DataTypeTok{method=}\StringTok{"repeatedcv"}\NormalTok{, }
+                                                        \DataTypeTok{number=}\DecValTok{5}\NormalTok{, }
+                                                        \DataTypeTok{repeats=}\DecValTok{2}\NormalTok{, }
+                                                        \DataTypeTok{search=}\StringTok{"grid"}\NormalTok{, }
+                                                        \DataTypeTok{classProbs =} \OtherTok{TRUE}\NormalTok{,}
+                                                        \CommentTok{# we could also use subsampling, but this will make it run even slower}
+                                                        \DataTypeTok{sampling =} \StringTok{"up"}\NormalTok{,}
+                                                        \DataTypeTok{summaryFunction =}\NormalTok{ twoClassSummary}
+\NormalTok{                                                        )}
+\NormalTok{        customRF                        <-}\StringTok{  }\KeywordTok{list}\NormalTok{(}\DataTypeTok{type =} \StringTok{"Classification"}\NormalTok{, }\DataTypeTok{library =} \StringTok{"randomForest"}\NormalTok{, }\DataTypeTok{loop =} \OtherTok{NULL}\NormalTok{)}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{parameters <-}\StringTok{  }\KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{parameter =} \KeywordTok{c}\NormalTok{(}\StringTok{"mtry"}\NormalTok{, }\StringTok{"ntree"}\NormalTok{), }\DataTypeTok{class =} \KeywordTok{rep}\NormalTok{(}\StringTok{"numeric"}\NormalTok{, }\DecValTok{2}\NormalTok{), }\DataTypeTok{label =} \KeywordTok{c}\NormalTok{(}\StringTok{"mtry"}\NormalTok{, }\StringTok{"ntree"}\NormalTok{))}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{grid           <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x, y, }\DataTypeTok{len =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{search =} \StringTok{"grid"}\NormalTok{) \{\}}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{fit                <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x, y, wts, param, lev, last, weights, classProbs, ...) }\KeywordTok{randomForest}\NormalTok{(x, y, }\DataTypeTok{mtry =}\NormalTok{ param}\OperatorTok{$}\NormalTok{mtry, }\DataTypeTok{ntree=}\NormalTok{param}\OperatorTok{$}\NormalTok{ntree, ...)}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{predict        <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(modelFit, newdata, }\DataTypeTok{preProc =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{submodels =} \OtherTok{NULL}\NormalTok{) }\KeywordTok{predict}\NormalTok{(modelFit, newdata)}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{prob           <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(modelFit, newdata, }\DataTypeTok{preProc =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{submodels =} \OtherTok{NULL}\NormalTok{)   }\KeywordTok{predict}\NormalTok{(modelFit, newdata, }\DataTypeTok{type =} \StringTok{"prob"}\NormalTok{)}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{sort           <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x) x[}\KeywordTok{order}\NormalTok{(x[,}\DecValTok{1}\NormalTok{]),]}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{levels         <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x) x}\OperatorTok{$}\NormalTok{surface}
+                
+\NormalTok{        model_fit_current <-}\StringTok{ }\KeywordTok{train}\NormalTok{(surface }\OperatorTok{~}\StringTok{ }\NormalTok{., }
+                                                             \DataTypeTok{data =} \KeywordTok{select}\NormalTok{(x_train_for_train_ova_current, }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id), }
+                                                             \DataTypeTok{method=}\NormalTok{customRF, }
+                                                             \CommentTok{# use ROC for the metric because Accuracy is not the best }
+                                                             \CommentTok{# in case of this heavy unballanced data seet}
+                                                             \DataTypeTok{metric=}\StringTok{"ROC"}\NormalTok{, }
+                                                             \DataTypeTok{tuneGrid=}\NormalTok{tunegrid, }
+                                                             \DataTypeTok{trControl=}\NormalTok{control)}
+        \CommentTok{###################################################################################################}
+        
+        \CommentTok{# save the model into /models folder}
+\NormalTok{        model_name <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(model_prefix, current_surface, }\DataTypeTok{sep =} \StringTok{""}\NormalTok{)}
+\NormalTok{        file <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(}\StringTok{"models/"}\NormalTok{,  model_name, }\StringTok{".rds"}\NormalTok{, }\DataTypeTok{sep =} \StringTok{""}\NormalTok{)}
+        \KeywordTok{write_rds}\NormalTok{(model_fit_current, file)}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+Now, we'll load the models and perform model prediction and evaluation:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# create a data frame the will store probabilities for each model}
+\CommentTok{# we'll use this for voting}
+\CommentTok{# the model with highes prediction will get the vote}
+\NormalTok{results_voting <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(}
+    \DataTypeTok{series_id =}\NormalTok{ x_train_for_test_ova}\OperatorTok{$}\NormalTok{series_id, }
+    \DataTypeTok{true_surface =}\NormalTok{ x_train_for_test_ova}\OperatorTok{$}\NormalTok{surface)}
+
+\ControlFlowTok{for}\NormalTok{(current_surface }\ControlFlowTok{in}\NormalTok{ surfaces}\OperatorTok{$}\NormalTok{surface) \{}
+    
+    \CommentTok{# prepare the test dataset: we keep current surface name, and we rename all other surfaces to "the_rest"}
+    \CommentTok{# we have now a binary clasification.}
+\NormalTok{    x_train_for_test_ova_current <-}\StringTok{ }\NormalTok{x_train_for_test_ova }\OperatorTok{%>%}\StringTok{ }
+\StringTok{            }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{ifelse}\NormalTok{(surface }\OperatorTok{==}\StringTok{ }\NormalTok{current_surface, current_surface, }\StringTok{"the_rest"}\NormalTok{)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{            }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{as.factor}\NormalTok{(surface))}
+    
+    \CommentTok{# get the model from a file}
+\NormalTok{    model_name <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(model_prefix, current_surface, }\DataTypeTok{sep =} \StringTok{""}\NormalTok{)}
+\NormalTok{    model_fit_current <-}\StringTok{ }\KeywordTok{readRDS}\NormalTok{(}\KeywordTok{paste}\NormalTok{(}\StringTok{"models/"}\NormalTok{, model_name, }\StringTok{".rds"}\NormalTok{, }\DataTypeTok{sep =} \StringTok{""}\NormalTok{))}
+    
+    \CommentTok{# get y_hat_prob}
+\NormalTok{    y_hat_prob <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(}
+\NormalTok{                                        model_fit_current, }
+                                        \KeywordTok{select}\NormalTok{(x_train_for_test_ova_current, }\OperatorTok{-}\NormalTok{series_id), }
+                                        \DataTypeTok{type =} \StringTok{"prob"}\NormalTok{)}
+    
+    \CommentTok{# store the probability of curent model for current surface in a column named by current surface}
+\NormalTok{    results_voting <-}\StringTok{ }\NormalTok{results_voting }\OperatorTok{%>%}\StringTok{ }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{last_result_prob =}\NormalTok{ y_hat_prob[,current_surface])}
+    \KeywordTok{names}\NormalTok{(results_voting)[}\KeywordTok{ncol}\NormalTok{(results_voting)] <-}\StringTok{ }\NormalTok{current_surface }\CommentTok{# the column name is current surface}
+
+\NormalTok{\}}
+
+\CommentTok{# add an empty column for predicted surfaces }
+\NormalTok{results_voting <-}\StringTok{ }\NormalTok{results_voting }\OperatorTok{%>%}\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{pred_surface =} \KeywordTok{rep}\NormalTok{(}\StringTok{""}\NormalTok{, }\KeywordTok{nrow}\NormalTok{(results_voting)))}
+
+\CommentTok{# set the value on predicted surface to the surface that got maximum probability}
+\ControlFlowTok{for}\NormalTok{ (i }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{nrow}\NormalTok{(results_voting)) \{}
+\NormalTok{        results_voting[i, }\StringTok{"pred_surface"}\NormalTok{] <-}\StringTok{ }\KeywordTok{names}\NormalTok{(}\KeywordTok{which.max}\NormalTok{(}\KeywordTok{select}\NormalTok{(results_voting[i,], }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{true_surface, }\OperatorTok{-}\NormalTok{pred_surface)))}
+\NormalTok{\}}
+
+\NormalTok{results_voting <-}\StringTok{ }\NormalTok{results_voting }\OperatorTok{%>%}\StringTok{ }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{pred_surface =} \KeywordTok{as.factor}\NormalTok{(pred_surface))}
+
+\CommentTok{# show a sample of the voting table}
+\NormalTok{nicetable <-}\StringTok{ }\NormalTok{results_voting }\OperatorTok{%>%}\StringTok{ }\KeywordTok{head}\NormalTok{(}\DecValTok{5}\NormalTok{) }\OperatorTok{%>%}\StringTok{  }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+The voting table looks like this:
+
+\begin{longtable}[]{@{}rlrrrrrrrrrl@{}}
+\toprule
+series\_id & true\_surface & hard\_tiles & carpet &
+hard\_tiles\_large\_space & fine\_concrete & tiled & wood & concrete &
+soft\_tiles & soft\_pvc & pred\_surface\tabularnewline
+\midrule
+\endhead
+1 & concrete & 0.000 & 0.3700000 & 0.004 & 0.000 & 0.166 & 0.166 & 0.638
+& 0.023 & 0.036 & concrete\tabularnewline
+2 & concrete & 0.000 & 0.0133333 & 0.026 & 0.626 & 0.032 & 0.020 & 0.124
+& 0.022 & 0.726 & soft\_pvc\tabularnewline
+6 & soft\_pvc & 0.005 & 0.0933333 & 0.064 & 0.496 & 0.006 & 0.006 &
+0.004 & 0.320 & 0.810 & soft\_pvc\tabularnewline
+7 & concrete & 0.000 & 0.5033333 & 0.000 & 0.000 & 0.008 & 0.128 & 0.928
+& 0.001 & 0.006 & concrete\tabularnewline
+19 & soft\_tiles & 0.379 & 0.0066667 & 0.000 & 0.026 & 0.008 & 0.000 &
+0.038 & 0.985 & 0.050 & soft\_tiles\tabularnewline
+\bottomrule
+\end{longtable}
+
+And here is the confusion matrix:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# compute confusion matrix and print it}
+\NormalTok{conf_matrix <-}\StringTok{ }\KeywordTok{confusionMatrix}\NormalTok{(results_voting}\OperatorTok{$}\NormalTok{pred_surface,}
+\NormalTok{                                                             results_voting}\OperatorTok{$}\NormalTok{true_surface)}
+
+\CommentTok{# display confusion matrix}
+\NormalTok{conf_matrix}\OperatorTok{$}\NormalTok{table }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}lrrrrrrrrr@{}}
+\toprule
+& carpet & concrete & fine\_concrete & hard\_tiles &
+hard\_tiles\_large\_space & soft\_pvc & soft\_tiles & tiled &
+wood\tabularnewline
+\midrule
+\endhead
+carpet & 17 & 1 & 0 & 0 & 0 & 0 & 0 & 1 & 0\tabularnewline
+concrete & 1 & 56 & 0 & 0 & 0 & 3 & 0 & 1 & 0\tabularnewline
+fine\_concrete & 1 & 0 & 24 & 0 & 1 & 0 & 0 & 0 & 1\tabularnewline
+hard\_tiles & 0 & 0 & 0 & 5 & 0 & 0 & 0 & 0 & 0\tabularnewline
+hard\_tiles\_large\_space & 0 & 0 & 0 & 0 & 20 & 0 & 0 & 0 &
+0\tabularnewline
+soft\_pvc & 1 & 7 & 0 & 0 & 0 & 81 & 2 & 3 & 1\tabularnewline
+soft\_tiles & 0 & 1 & 5 & 0 & 1 & 6 & 66 & 1 & 1\tabularnewline
+tiled & 2 & 3 & 0 & 0 & 1 & 1 & 0 & 35 & 6\tabularnewline
+wood & 3 & 0 & 0 & 0 & 1 & 0 & 0 & 4 & 36\tabularnewline
+\bottomrule
+\end{longtable}
+
+\hypertarget{results}{%
+\section{Results}\label{results}}
+
+Here are the final results:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{model_results <-}\StringTok{ }\KeywordTok{bind_rows}\NormalTok{(model_results,}
+            \KeywordTok{data_frame}\NormalTok{(}
+            \DataTypeTok{Model =} \StringTok{"randomForest one-vs-one"}\NormalTok{,}
+            \DataTypeTok{Accuracy =}\NormalTok{ conf_matrix}\OperatorTok{$}\NormalTok{overall[}\StringTok{"Accuracy"}\NormalTok{]))}
+\CommentTok{# model_results %>% knitr::kable()}
 
 \NormalTok{model_results }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
 \end{Highlighting}
 \end{Shaded}
 
-\begin{longtable}[]{@{}ll@{}}
+\begin{longtable}[]{@{}lr@{}}
 \toprule
-method & accuracy\tabularnewline
+Model & Accuracy\tabularnewline
 \midrule
 \endhead
-Model & Accuracy\tabularnewline
-KNN & 0.764510779436153\tabularnewline
+KNN & 0.7645108\tabularnewline
+rpart & 0.7114428\tabularnewline
+randomForest & 0.8325041\tabularnewline
+randomForest one-vs-one & 0.8500000\tabularnewline
 \bottomrule
 \end{longtable}
-
-\hypertarget{one-vs-one-or-one-vs-all}{%
-\subsection{One-vs-One or One-vs-All}\label{one-vs-one-or-one-vs-all}}
-
-\hypertarget{results-and-submit-the-data}{%
-\section{Results and Submit the
-Data}\label{results-and-submit-the-data}}
 
 \hypertarget{conclusion}{%
 \section{Conclusion}\label{conclusion}}
 
-One of the most important outcome of this prroject is that I learned a
+In this project I used several models to try to determine the surface a
+robot is moving based on data from three sensors: inertial,
+magnetostatic and gyroscopic. This is part of an open competition on
+Kaggle: \href{https://www.kaggle.com/c/career-con-2019}{\emph{CareerCon
+2019 - Help Navigate Robots}} I used KNN, rpart and two flavors of
+randomForest. I also tried on the side several other models with similar
+results.
+
+I believe the key is in determining the right feature set that would
+predict accurately the surface. Although the accuracy obtained on the
+local data set is not bad, when submitting the predictions to Kaggle.com
+I get a relatively low result. This could mean that somehow the model is
+overfitted for the train data. Even if I didn't touch the test partition
+that I kept for evaluation. My guess is that should work on eliminating
+the outlines observed in Visualization section. They may alter the model
+in a bad way.
+
+One of the most important outcome of this project is that I learned a
 few things in addition to what was presented in the course.
+
+I hope this was interesting for you.
+
+Thank you for reading!
 
 \hypertarget{reference}{%
 \section{Reference}\label{reference}}
@@ -998,7 +1477,7 @@ few things in addition to what was presented in the course.
   Jason Brownlee.
   \url{https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/}
 \item
-  Classification with more than two classes, from Introduction to
+  Classification with more than two classes - Introduction to
   Information Retrieval, Christopher D. Manning, Prabhakar Raghavan and
   Hinrich Schütze,, Cambridge University Press 2008
   \url{https://nlp.stanford.edu/IR-book/html/htmledition/classification-with-more-than-two-classes-1.html}

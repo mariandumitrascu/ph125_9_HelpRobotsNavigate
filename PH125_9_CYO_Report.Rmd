@@ -24,7 +24,7 @@ For this project I choose a Kaggle.com open competition project. This is [*Caree
 > *We’ve collected IMU sensor data while driving a small mobile robot over different floor surfaces on the university premises. The task is to predict which one of the nine floor types (carpet, tiles, concrete) the  robot is on using sensor data such as acceleration and velocity. Succeed and you'll help improve the navigation of robots without assistance across many different surfaces, so they won’t fall down on the job.*
 
 The task is challenging, but I believe I can obtain a decent result using techniques and tools learned in this course.
-Please note that some code chunks are not showing in the PDF for aesthetic reasons. You can find the code behind many of the graphs and images in the Rmd version.
+Please note that some code chunks are not showing in the PDF for aesthetic reasons. You can find all code behind in the .Rmd version.
 
 ## Report Structure
 
@@ -38,8 +38,8 @@ Please note that some code chunks are not showing in the PDF for aesthetic reaso
 
 ## Report and Data Location
 
-I also keep this project on GitHub: https://github.com/mariandumitrascu/ph125_9_HelpRobotsNavigate
-Data loaded by the R scripts is kept on an AWS public S3 bucket, to be easily loaded. This will bee available for the duration of the grading.
+I keep this project on GitHub at this Url: https://github.com/mariandumitrascu/ph125_9_HelpRobotsNavigate
+Data loaded by the R scripts is kept on an AWS public S3 bucket, to be easily loaded. This will be available for the duration of the grading.
 
 # The Data
 
@@ -74,7 +74,7 @@ Input data from Kaggle consists in 4 files:
 
 * *sample_submission.csv* - a sample submission file in the correct format.
 
-In this report I will split the training data into two partitions, will fit a model on the first one, and measure it's accuracy on the second. I will also use a small part of data to make it run faster. The R script for generating the final results will use all data. 
+In this report I will split the training data into two partitions, will fit a model on the first one, and measure it's accuracy on the second. I will use a small part of data to make it run faster. The R script for generating the final results will use all data. 
 
 ## Data Analysis
 
@@ -84,7 +84,7 @@ I will make the following assumptions about observations:
 * the interval between the 128 observations for each series is always the same. 
 * the surface is a plane, no stairs, hills or valleys
 
-From a physicist perspective there are three forces involved: gravitation force, robot propulsion force, and friction force. Gravitation force is constant. Friction force depends on the surface by a coefficient and propulsion is an unknown variable. We need to basically determine the friction coefficient based on a movement pattern. Moving objects will travel longer if the surface has a lower friction than on a surface with higher friction. On the other side, changing direction can be deeper on a surface with higher friction. 
+From a physicist perspective there are three forces involved: gravitation force, robot propulsion force, and friction force. Gravitation force is constant. Friction force depends on the surface by a coefficient and propulsion is an unknown variable. We need to basically determine the friction coefficient based on a movement pattern. Moving objects will travel longer if the surface has a lower friction than on a surface with higher friction. On the other side, changing direction can be slower on a surface with higher friction such as carpet. 
 
 ```{r load packages, include=FALSE}
 options(repos="https://CRAN.R-project.org")
@@ -142,6 +142,7 @@ nicetable <- dist %>% knitr::kable()
 
 ```
 Here is a distribution of measurements by surface in the training set: `r nicetable`
+We can see that we deal with an unbalanced data set. *hard_tiles* have only 21 records while *concrete* 779
 
 Angular velocity data is produced by a magnetostatic sensor, it indicates the angular speed the robot is moving in reference with earth orientation. Here is the distribution of angular velocity by surface:
 
@@ -294,7 +295,7 @@ rm(draw_sample, series, draw_set)
 	
 ```
 
-I cannot observe obvious differences between paths on carpet vs concrete, but maybe a machine can. An idea would be to convert all paths to images and do an image analysis, but I will stick with a more classical approach for this project. I'll use several models in caret package.
+I cannot observe obvious differences between paths on carpet vs concrete, but maybe a machine can. An idea would be to convert all paths to images and do an image analysis, but I will stick with a more classical approach for this project. I'll use several models from caret package: *KNN*, *rpart* and *randomForest.*
 
 ## Data Pre-Processing
 
@@ -458,7 +459,7 @@ pre_process <- function(a_dataframe, n_of_rows = nrow(a_dataframe)/128 ) {
 ```
 
 Pre-process the data and save it to a local file. This is to save time for further analysis by skipping the pre-processing procedure.
-I use *tic()* *toc()* functions from *tictoc* package to display processing time.
+I'm using *tic()* *toc()* functions from *tictoc* package to display processing time.
 ```{r preprocess both train and test data and save, warning=FALSE}
 
 # pre-process train and test data sets
@@ -511,7 +512,8 @@ x_test_processed <- x_test_processed_from_file
 x_train_processed <- x_train_processed_from_file 
 ```
 
-We created `r ncol(x_train_processed) - 3` features, lets trim some of them. I will identify first the ones that are strongly correlated.
+We created `r ncol(x_train_processed) - 3` features, lets trim some of them. First, I will identify those that are strongly correlated.
+Lets plot the correlation matrix:
 ```{r correlation matrix before, fig.width=8, fig.height=9}
 library(RColorBrewer)
 library(corrplot)
@@ -581,7 +583,7 @@ x_train_processed %>%  ggplot(aes(theta_mean_all, phi_mean_all, fill = surface))
 
 
 ```
-I would speculate that all points that ore not on the global pattern are actually outlines, but I did not explore that hypothesis. 
+I would speculate that all points that are not on the global pattern are actually outlines, but I did not explore that hypothesis. 
 
 The following is the angle between *theta* - *psi* vectors and the angular momentum:
 
@@ -649,16 +651,16 @@ x_test_processed <- x_test_processed %>% select(-theta_min, -omega_max_to_min, -
 It is time now to fit some models. I tried many models on the side but I will present in this report only 
 
 * KNN, 
-* rpart,  
+* rpart,
 * randomForest,
 * randomForest assembly
 
 Please note that the code in this report is using only 1000 records from training, that is further partitioned in train and test with 0.5 ratio I've done this to make it run faster.
-I am using full data set in the R script and also I will present the final results from Kaggle. 
+I am using full data set in the R script and also I will present the final results from Kaggle (i think I said this before). 
 
 ## KNN Model
 
-KNN is getting incrementally slow with the number of features. So for KNN I used only the most important variables as part of the formula. 
+KNN is getting incrementally slower with the number of features. So for KNN I used only the most important variables as part of the formula. 
 
 ```{r KNN, warning=FALSE}
 
@@ -681,9 +683,11 @@ model_results <- data.frame(Model = "KNN", Accuracy = conf_matrix$overall["Accur
 model_results %>% knitr::kable()
 
 ```
+
+
 ## rpart Model
 
-Another model I tried is rpart (Recursive Partitioning And Regression Tree)
+Another model I tried is rpart (Recursive Partitioning And Regression Tree). I will tune it on the complexity coeficient
 
 ```{r rpart, warning=FALSE}
 
@@ -708,9 +712,11 @@ model_results %>% knitr::kable()
 
 
 ```
+
+
 ## RandomForest Model
 
-For randomForest model  choose to customize it and try optimization over mtry (~max number of ramifications) and ntree (max number of forests to grow) parameters.
+For randomForest model I choose to customize it and try optimization over *mtry* (~max number of ramifications) and *ntree* (max number of forests to grow) parameters.
 I got the way of customization from following article about tuning randomForests:
 https://machinelearningmastery.com/tune-machine-learning-algorithms-in-r/
 This may take several minutes to run
@@ -767,10 +773,10 @@ model_results %>% knitr::kable()
 
 ## Final model: randomForest one-vs-one
 
-For the final model I choose a one-vs-one approach. Where I fit a model for each class.  For this I loop over each of surfaces, rename all others to "the rest" then I fit a randomForest model. 
-I record results as probabilities in a table with surfaces as columns and probability of the class as values. 
-This would be a very unbalanced class. To balance it, I  create a 3rd set of data, called x_train_pool and move some records of the current class from it into current training data set.
-I save each model in a folder called "models". To predict, I'm looping over each surface in the test set and store the result as probabilities. The one with highest probability will determine the class for each point.
+For the final model I choose a *one-vs-one* approach. Where I fit a model for each class.  For this I loop over each of surfaces, rename all others to *the_rest* then I fit a randomForest model for each surface. 
+I'm recording the results as probabilities in a table with surfaces as columns, and probability of the class as values. 
+This would be a very unbalanced class. To balance it, I  create a 3rd set of data, called *x_train_pool* and move some records of the current class from it into current training data set.
+I save each model in a folder called *models*. To predict, I'm looping over each surface in the test set and store the result as probabilities. The one with highest probability will determine the class for each point.
 
 I use ROC as the metric to measure model performance. Accuracy wont be the best for this heavy unbalanced data set. 
 This will take significant amount of time even if  I tried to use minimum set of tuning options.
@@ -903,13 +909,15 @@ for (i in 1:nrow(results_voting)) {
 results_voting <- results_voting %>% mutate(pred_surface = as.factor(pred_surface))
 
 # show a sample of the voting table
-nicetable <- results_voting %>% knitr::kable() %>% head(5)
+nicetable <- results_voting %>% head(5) %>%  knitr::kable()
 
 ```
 
 The voting table looks like this:
+
 `r nicetable`
 
+And here is the confusion matrix:
 
 ```{r show confusion matrix}
 
@@ -920,30 +928,37 @@ conf_matrix <- confusionMatrix(results_voting$pred_surface,
 # display confusion matrix
 conf_matrix$table %>% knitr::kable()
 
+
+
+```
+
+# Results 
+
+Here are the final results:
+
+```{r  final results}
 model_results <- bind_rows(model_results,
 			data_frame(
 			Model = "randomForest one-vs-one",
 			Accuracy = conf_matrix$overall["Accuracy"]))
 # model_results %>% knitr::kable()
 
-nicetable <- model_results %>% knitr::kable()
-
+model_results %>% knitr::kable()
 ```
 
 
 
-# Results 
-
-Here are the final results:
-'r nicetable'
 
 
 # Conclusion
 
 In this project I used several models to try to determine the surface a robot is moving based on data from three sensors: inertial, magnetostatic and gyroscopic. 
 This is part of an open competition on Kaggle:  [*CareerCon 2019 - Help Navigate Robots*](https://www.kaggle.com/c/career-con-2019)
-I used KNN, rpart and two flavors of randomForest. I also tried on the side several other models with similar results. I believe the key is in determining the right feature set that would predict accurately the surface.
+I used KNN, rpart and two flavors of randomForest. I also tried on the side several other models with similar results. 
+
+I believe the key is in determining the right feature set that would predict accurately the surface.
 Although the accuracy obtained on the local data set is not bad, when submitting the predictions to Kaggle.com I get a relatively low result. This could mean that somehow the model is overfitted for the train data. Even if I didn't touch the test partition that I kept for evaluation. My guess is that should work on eliminating the outlines observed in Visualization section. They may alter the model in a bad way. 
+
 One of the most important outcome of this project is that I learned a few things in addition to what was presented in the course. 
 
 I hope this was interesting for you.
