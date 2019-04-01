@@ -1,0 +1,540 @@
+\documentclass[]{article}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\usepackage{fixltx2e} % provides \textsubscript
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+\else % if luatex or xelatex
+  \ifxetex
+    \usepackage{mathspec}
+  \else
+    \usepackage{fontspec}
+  \fi
+  \defaultfontfeatures{Ligatures=TeX,Scale=MatchLowercase}
+\fi
+% use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+% use microtype if available
+\IfFileExists{microtype.sty}{%
+\usepackage{microtype}
+\UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\usepackage[margin=1in]{geometry}
+\usepackage{hyperref}
+\hypersetup{unicode=true,
+            pdftitle={Surface Detection by Robot Movements - R Script},
+            pdfauthor={Marian Dumitrascu},
+            pdfborder={0 0 0},
+            breaklinks=true}
+\urlstyle{same}  % don't use monospace font for urls
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs}
+\usepackage{graphicx,grffile}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+\IfFileExists{parskip.sty}{%
+\usepackage{parskip}
+}{% else
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{6pt plus 2pt minus 1pt}
+}
+\setlength{\emergencystretch}{3em}  % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{0}
+% Redefines (sub)paragraphs to behave more like sections
+\ifx\paragraph\undefined\else
+\let\oldparagraph\paragraph
+\renewcommand{\paragraph}[1]{\oldparagraph{#1}\mbox{}}
+\fi
+\ifx\subparagraph\undefined\else
+\let\oldsubparagraph\subparagraph
+\renewcommand{\subparagraph}[1]{\oldsubparagraph{#1}\mbox{}}
+\fi
+
+%%% Use protect on footnotes to avoid problems with footnotes in titles
+\let\rmarkdownfootnote\footnote%
+\def\footnote{\protect\rmarkdownfootnote}
+
+%%% Change title format to be more compact
+\usepackage{titling}
+
+% Create subtitle command for use in maketitle
+\newcommand{\subtitle}[1]{
+  \posttitle{
+    \begin{center}\large#1\end{center}
+    }
+}
+
+\setlength{\droptitle}{-2em}
+
+  \title{Surface Detection by Robot Movements - R Script}
+    \pretitle{\vspace{\droptitle}\centering\huge}
+  \posttitle{\par}
+    \author{Marian Dumitrascu}
+    \preauthor{\centering\large\emph}
+  \postauthor{\par}
+      \predate{\centering\large\emph}
+  \postdate{\par}
+    \date{March 31, 2019}
+
+
+\begin{document}
+\maketitle
+
+\hypertarget{the-r-script}{%
+\section{The R Script}\label{the-r-script}}
+
+For this project I choose a Kaggle.com open competition project. This is
+\href{https://www.kaggle.com/c/career-con-2019}{\emph{CareerCon 2019 -
+Help Navigate Robots}}.
+
+This document is the R Script that uses the final model described in the
+report for predicting the surface a robot is moving, based on data from
+three sensors: inertial, magnetostatic and gyroscopic. Data is
+downloaded from a AWS S3 bucket that I prepared for the duration of
+grading of this project. This data together with an intermediarry set of
+data is stored in a subfolder \emph{data}
+
+The script uses the full training dataset to produce a set of 9 models
+one for each surface type that are saved on hard-disk in a subfolder
+\emph{models}. At the end it will run on the full test dataset and
+create a file in the format accepted by Kaggle for submission.
+
+I also keep this project on GitHub:
+\url{https://github.com/mariandumitrascu/ph125_9_HelpRobotsNavigate}
+
+Running this script could take considerable amount of time and require
+at least 8Gb of RAM.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# #######################################################################################################}
+\CommentTok{# load pre-processed data from file}
+
+\NormalTok{x_train_processed_from_file <-}\StringTok{ }\KeywordTok{read_csv}\NormalTok{(}\StringTok{"data/x_train_processed.csv"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Parsed with column specification:
+## cols(
+##   .default = col_double(),
+##   series_id = col_integer(),
+##   group_id = col_integer(),
+##   surface = col_character()
+## )
+\end{verbatim}
+
+\begin{verbatim}
+## See spec(...) for full column specifications.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{x_test_processed_from_file <-}\StringTok{ }\KeywordTok{read_csv}\NormalTok{(}\StringTok{"data/x_test_processed.csv"}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Parsed with column specification:
+## cols(
+##   .default = col_double(),
+##   series_id = col_integer()
+## )
+## See spec(...) for full column specifications.
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# if we load data from a file, convert surface to factor}
+\NormalTok{x_train_processed_from_file <-}\StringTok{ }\NormalTok{x_train_processed_from_file }\OperatorTok{%>%}\StringTok{ }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{as.factor}\NormalTok{(surface))}
+
+
+\NormalTok{x_test_processed <-}\StringTok{ }\NormalTok{x_test_processed_from_file}
+\NormalTok{x_train_processed <-}\StringTok{ }\NormalTok{x_train_processed_from_file }
+
+\CommentTok{# #######################################################################################################}
+\CommentTok{#  pre-processing - feature selection}
+
+\CommentTok{# pre-process the data, center and scale the values across all predictors}
+\NormalTok{pre_process <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id) }\OperatorTok{%>%}\StringTok{ }\KeywordTok{preProcess}\NormalTok{(}\DataTypeTok{method =} \KeywordTok{c}\NormalTok{(}\StringTok{"center"}\NormalTok{, }\StringTok{"scale"}\NormalTok{))}
+\NormalTok{x_train_processed <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(pre_process, x_train_processed)}
+\NormalTok{x_test_processed <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(pre_process, x_test_processed)}
+
+\KeywordTok{rm}\NormalTok{(pre_process)}
+
+
+\CommentTok{# convert both test and train data to matrix in order to analyse feature corelation}
+\NormalTok{x_train_matrix <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{surface, }\OperatorTok{-}\NormalTok{series_id) }\OperatorTok{%>%}\StringTok{ }\KeywordTok{as.matrix}\NormalTok{()}
+\NormalTok{x_test_matrix <-}\StringTok{ }\NormalTok{x_test_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{series_id) }\OperatorTok{%>%}\StringTok{ }\KeywordTok{as.matrix}\NormalTok{()}
+
+\CommentTok{# find features that are high correlated }
+\CommentTok{# find linear dependencies and eliminate them}
+\NormalTok{names_to_remove_test <-}\StringTok{ }\KeywordTok{findCorrelation}\NormalTok{(}\KeywordTok{cor}\NormalTok{(x_test_matrix), }\DataTypeTok{cutoff =} \FloatTok{0.95}\NormalTok{, }\DataTypeTok{names =} \OtherTok{TRUE}\NormalTok{, }\DataTypeTok{verbose =} \OtherTok{FALSE}\NormalTok{, }\DataTypeTok{exact=}\OtherTok{TRUE}\NormalTok{)}
+
+\CommentTok{# remove correlated features from both train and test sets}
+\NormalTok{x_train_processed <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{names_to_remove_test) }
+\NormalTok{x_test_processed <-}\StringTok{ }\NormalTok{x_test_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{names_to_remove_test) }
+
+
+\CommentTok{# remove columns do not contribute to classification}
+\NormalTok{x_train_processed <-}\StringTok{ }\NormalTok{x_train_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{theta_min, }\OperatorTok{-}\NormalTok{omega_max_to_min, }\OperatorTok{-}\NormalTok{dist_mean_y, }\OperatorTok{-}\NormalTok{omega_mean_x, }\OperatorTok{-}\NormalTok{dist_mean_x, }\OperatorTok{-}\NormalTok{dist_mean_z)}
+\NormalTok{x_test_processed <-}\StringTok{ }\NormalTok{x_test_processed }\OperatorTok{%>%}\StringTok{ }\KeywordTok{select}\NormalTok{(}\OperatorTok{-}\NormalTok{theta_min, }\OperatorTok{-}\NormalTok{omega_max_to_min, }\OperatorTok{-}\NormalTok{dist_mean_y, }\OperatorTok{-}\NormalTok{omega_mean_x, }\OperatorTok{-}\NormalTok{dist_mean_x, }\OperatorTok{-}\NormalTok{dist_mean_z)}
+
+
+\CommentTok{# #######################################################################################################}
+\CommentTok{# randomForest model one-vs-one training}
+
+\CommentTok{# store the train data in a new variable}
+\NormalTok{x_train_processed_ova <-}\StringTok{ }\NormalTok{x_train_processed }
+
+\CommentTok{# a prefix to save models on file system}
+\NormalTok{model_prefix <-}\StringTok{ "model_15_fit_"}
+
+\CommentTok{# create a subfolder called "models if it doesnt exists"}
+\ControlFlowTok{if}\NormalTok{ (}\OperatorTok{!}\KeywordTok{dir.exists}\NormalTok{(}\StringTok{"models"}\NormalTok{)) }\KeywordTok{dir.create}\NormalTok{(}\StringTok{"models"}\NormalTok{)}
+
+\CommentTok{# partition data into:train, test, and balancing pool}
+\CommentTok{# we will use the pool to extract records to balance the dataset}
+\NormalTok{folds <-}\StringTok{ }\KeywordTok{createFolds}\NormalTok{(x_train_processed_ova}\OperatorTok{$}\NormalTok{surface, }\DataTypeTok{k =} \DecValTok{3}\NormalTok{, }\DataTypeTok{list =} \OtherTok{TRUE}\NormalTok{)}
+\NormalTok{x_train_for_train_ova <-}\StringTok{ }\NormalTok{x_train_processed_ova[folds}\OperatorTok{$}\NormalTok{Fold1,]}
+\NormalTok{x_train_for_test_ova <-}\StringTok{ }\NormalTok{x_train_processed_ova[folds}\OperatorTok{$}\NormalTok{Fold2,]}
+\NormalTok{x_train_pool <-}\StringTok{ }\NormalTok{x_train_processed_ova[folds}\OperatorTok{$}\NormalTok{Fold3,]}
+
+\CommentTok{# get surfaces in a data frame, so we can loop over}
+\NormalTok{surfaces <-}\StringTok{ }\NormalTok{x_train_for_train_ova }\OperatorTok{%>%}\StringTok{ }\KeywordTok{group_by}\NormalTok{(surface) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{summarize}\NormalTok{(}\DataTypeTok{n =} \KeywordTok{n}\NormalTok{()) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{as.character}\NormalTok{(surface)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{    }\CommentTok{# filter(surface == "hard_tiles") %>% }
+\StringTok{    }\KeywordTok{arrange}\NormalTok{(n)}
+
+\CommentTok{# idealy, I should use apply function but I'm still working on that}
+\CommentTok{# this can bee also be improved if I would use foreacch packade with %dopar% option for parallelization.,}
+\CommentTok{# still work in progress}
+\CommentTok{# this could take more than 1 hour}
+\ControlFlowTok{for}\NormalTok{(current_surface }\ControlFlowTok{in}\NormalTok{ surfaces}\OperatorTok{$}\NormalTok{surface)}
+\NormalTok{\{}
+        \KeywordTok{tic}\NormalTok{(}\KeywordTok{paste}\NormalTok{(}\StringTok{"generating model for:"}\NormalTok{), current_surface)}
+    
+        \CommentTok{# convert surface to two values: current surface and "the_rest"}
+\NormalTok{        x_train_for_train_ova_current <-}\StringTok{ }\NormalTok{x_train_for_train_ova }\OperatorTok{%>%}\StringTok{ }
+\StringTok{            }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{ifelse}\NormalTok{(surface }\OperatorTok{==}\StringTok{ }\NormalTok{current_surface, current_surface, }\StringTok{"the_rest"}\NormalTok{)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{            }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{as.factor}\NormalTok{(surface))}
+        
+        \CommentTok{# add records from the pool to balance the recordset}
+\NormalTok{        x_chunk_for_balance <-}\StringTok{ }\NormalTok{x_train_pool }\OperatorTok{%>%}\StringTok{ }\KeywordTok{filter}\NormalTok{(surface }\OperatorTok{==}\StringTok{ }\NormalTok{current_surface)}
+\NormalTok{        x_train_for_train_ova_current <-}\StringTok{ }\KeywordTok{bind_rows}\NormalTok{(x_train_for_train_ova_current, x_chunk_for_balance)}
+        
+        \CommentTok{# ##################################################################################################}
+        \CommentTok{# custom randomForest}
+\NormalTok{        mtry <-}\StringTok{ }\KeywordTok{sqrt}\NormalTok{(}\KeywordTok{ncol}\NormalTok{(x_train_for_train_ova_current) }\OperatorTok{-}\StringTok{ }\DecValTok{1}\NormalTok{)}
+\NormalTok{        tunegrid <-}\StringTok{ }\KeywordTok{expand.grid}\NormalTok{(}\DataTypeTok{.mtry=}\NormalTok{mtry,}\DataTypeTok{.ntree=}\KeywordTok{c}\NormalTok{( }\DecValTok{300}\NormalTok{,}\DecValTok{500}\NormalTok{,}\DecValTok{1000}\NormalTok{, }\DecValTok{1500}\NormalTok{))}
+\NormalTok{        control <-}\StringTok{ }\KeywordTok{trainControl}\NormalTok{(}\DataTypeTok{method=}\StringTok{"repeatedcv"}\NormalTok{, }
+                                                        \DataTypeTok{number=}\DecValTok{10}\NormalTok{, }
+                                                        \DataTypeTok{repeats=}\DecValTok{2}\NormalTok{, }
+                                                        \DataTypeTok{search=}\StringTok{"grid"}\NormalTok{, }
+                                                        \DataTypeTok{classProbs =} \OtherTok{TRUE}\NormalTok{,}
+                                                        \CommentTok{# we could also use subsampling, but this will make it run even slower}
+                                                        \DataTypeTok{sampling =} \StringTok{"up"}\NormalTok{,}
+                                                        \DataTypeTok{summaryFunction =}\NormalTok{ twoClassSummary}
+\NormalTok{                                                        )}
+\NormalTok{        customRF                        <-}\StringTok{  }\KeywordTok{list}\NormalTok{(}\DataTypeTok{type =} \StringTok{"Classification"}\NormalTok{, }\DataTypeTok{library =} \StringTok{"randomForest"}\NormalTok{, }\DataTypeTok{loop =} \OtherTok{NULL}\NormalTok{)}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{parameters <-}\StringTok{  }\KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{parameter =} \KeywordTok{c}\NormalTok{(}\StringTok{"mtry"}\NormalTok{, }\StringTok{"ntree"}\NormalTok{), }\DataTypeTok{class =} \KeywordTok{rep}\NormalTok{(}\StringTok{"numeric"}\NormalTok{, }\DecValTok{2}\NormalTok{), }\DataTypeTok{label =} \KeywordTok{c}\NormalTok{(}\StringTok{"mtry"}\NormalTok{, }\StringTok{"ntree"}\NormalTok{))}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{grid           <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x, y, }\DataTypeTok{len =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{search =} \StringTok{"grid"}\NormalTok{) \{\}}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{fit                <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x, y, wts, param, lev, last, weights, classProbs, ...) }\KeywordTok{randomForest}\NormalTok{(x, y, }\DataTypeTok{mtry =}\NormalTok{ param}\OperatorTok{$}\NormalTok{mtry, }\DataTypeTok{ntree=}\NormalTok{param}\OperatorTok{$}\NormalTok{ntree, ...)}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{predict        <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(modelFit, newdata, }\DataTypeTok{preProc =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{submodels =} \OtherTok{NULL}\NormalTok{) }\KeywordTok{predict}\NormalTok{(modelFit, newdata)}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{prob           <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(modelFit, newdata, }\DataTypeTok{preProc =} \OtherTok{NULL}\NormalTok{, }\DataTypeTok{submodels =} \OtherTok{NULL}\NormalTok{)   }\KeywordTok{predict}\NormalTok{(modelFit, newdata, }\DataTypeTok{type =} \StringTok{"prob"}\NormalTok{)}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{sort           <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x) x[}\KeywordTok{order}\NormalTok{(x[,}\DecValTok{1}\NormalTok{]),]}
+\NormalTok{        customRF}\OperatorTok{$}\NormalTok{levels         <-}\StringTok{  }\ControlFlowTok{function}\NormalTok{(x) x}\OperatorTok{$}\NormalTok{surface}
+                
+\NormalTok{        model_fit_current <-}\StringTok{ }\KeywordTok{train}\NormalTok{(surface }\OperatorTok{~}\StringTok{ }\NormalTok{., }
+                                                             \DataTypeTok{data =} \KeywordTok{select}\NormalTok{(x_train_for_train_ova_current, }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{group_id), }
+                                                             \DataTypeTok{method=}\NormalTok{customRF, }
+                                                             \CommentTok{# use ROC for the metric because Accuracy is not the best }
+                                                             \CommentTok{# in case of this heavy unballanced data seet}
+                                                             \DataTypeTok{metric=}\StringTok{"ROC"}\NormalTok{, }
+                                                             \DataTypeTok{tuneGrid=}\NormalTok{tunegrid, }
+                                                             \DataTypeTok{trControl=}\NormalTok{control)}
+        \CommentTok{# ##################################################################################################}
+        \CommentTok{# save the model into /models folder}
+\NormalTok{        model_name <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(model_prefix, current_surface, }\DataTypeTok{sep =} \StringTok{""}\NormalTok{)}
+\NormalTok{        file <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(}\StringTok{"models/"}\NormalTok{,  model_name, }\StringTok{".rds"}\NormalTok{, }\DataTypeTok{sep =} \StringTok{""}\NormalTok{)}
+        \KeywordTok{write_rds}\NormalTok{(model_fit_current, file)}
+        
+        \KeywordTok{toc}\NormalTok{()}
+\NormalTok{\}}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): Unequal factor levels: coercing to character
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+\end{verbatim}
+
+\begin{verbatim}
+## generating model for:: 196.67 sec elapsed
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): Unequal factor levels: coercing to character
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+\end{verbatim}
+
+\begin{verbatim}
+## generating model for:: 302.42 sec elapsed
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): Unequal factor levels: coercing to character
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+\end{verbatim}
+
+\begin{verbatim}
+## generating model for:: 296.35 sec elapsed
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): Unequal factor levels: coercing to character
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+\end{verbatim}
+
+\begin{verbatim}
+## generating model for:: 256.56 sec elapsed
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): Unequal factor levels: coercing to character
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+\end{verbatim}
+
+\begin{verbatim}
+## generating model for:: 334.42 sec elapsed
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): Unequal factor levels: coercing to character
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+\end{verbatim}
+
+\begin{verbatim}
+## generating model for:: 297.61 sec elapsed
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): Unequal factor levels: coercing to character
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+\end{verbatim}
+
+\begin{verbatim}
+## generating model for:: 301.78 sec elapsed
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): Unequal factor levels: coercing to character
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+\end{verbatim}
+
+\begin{verbatim}
+## generating model for:: 292.47 sec elapsed
+\end{verbatim}
+
+\begin{verbatim}
+## Warning in bind_rows_(x, .id): Unequal factor levels: coercing to character
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+
+## Warning in bind_rows_(x, .id): binding character and factor vector,
+## coercing into character vector
+\end{verbatim}
+
+\begin{verbatim}
+## generating model for:: 289.89 sec elapsed
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# #######################################################################################################}
+\CommentTok{# load the models and perform model prediction and evaluation using test data split from training:}
+
+
+\CommentTok{# # create a data frame the will store probabilities for each model}
+\CommentTok{# we'll use this for voting}
+\CommentTok{# the model with highes prediction will get the vote}
+\NormalTok{results_voting <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(}
+    \DataTypeTok{series_id =}\NormalTok{ x_train_for_test_ova}\OperatorTok{$}\NormalTok{series_id, }
+    \DataTypeTok{true_surface =}\NormalTok{ x_train_for_test_ova}\OperatorTok{$}\NormalTok{surface)}
+
+\ControlFlowTok{for}\NormalTok{(current_surface }\ControlFlowTok{in}\NormalTok{ surfaces}\OperatorTok{$}\NormalTok{surface) \{}
+    
+    \CommentTok{# prepare the test dataset: we keep current surface name, and we rename all other surfaces to "the_rest"}
+    \CommentTok{# we have now a binary clasification.}
+\NormalTok{    x_train_for_test_ova_current <-}\StringTok{ }\NormalTok{x_train_for_test_ova }\OperatorTok{%>%}\StringTok{ }
+\StringTok{            }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{ifelse}\NormalTok{(surface }\OperatorTok{==}\StringTok{ }\NormalTok{current_surface, current_surface, }\StringTok{"the_rest"}\NormalTok{)) }\OperatorTok{%>%}\StringTok{ }
+\StringTok{            }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{surface =} \KeywordTok{as.factor}\NormalTok{(surface))}
+    
+    \CommentTok{# get the model from a file}
+\NormalTok{    model_name <-}\StringTok{ }\KeywordTok{paste}\NormalTok{(model_prefix, current_surface, }\DataTypeTok{sep =} \StringTok{""}\NormalTok{)}
+\NormalTok{    model_fit_current <-}\StringTok{ }\KeywordTok{readRDS}\NormalTok{(}\KeywordTok{paste}\NormalTok{(}\StringTok{"models/"}\NormalTok{, model_name, }\StringTok{".rds"}\NormalTok{, }\DataTypeTok{sep =} \StringTok{""}\NormalTok{))}
+    
+    \CommentTok{# get y_hat_prob}
+\NormalTok{    y_hat_prob <-}\StringTok{ }\KeywordTok{predict}\NormalTok{(}
+\NormalTok{                                        model_fit_current, }
+                                        \KeywordTok{select}\NormalTok{(x_train_for_test_ova_current, }\OperatorTok{-}\NormalTok{series_id), }
+                                        \DataTypeTok{type =} \StringTok{"prob"}\NormalTok{)}
+    
+    \CommentTok{# store the probability of curent model for current surface in a column named by current surface}
+\NormalTok{    results_voting <-}\StringTok{ }\NormalTok{results_voting }\OperatorTok{%>%}\StringTok{ }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{last_result_prob =}\NormalTok{ y_hat_prob[,current_surface])}
+    \KeywordTok{names}\NormalTok{(results_voting)[}\KeywordTok{ncol}\NormalTok{(results_voting)] <-}\StringTok{ }\NormalTok{current_surface }\CommentTok{# the column name is current surface}
+
+\NormalTok{\}}
+
+\CommentTok{# add an empty column for predicted surfaces }
+\NormalTok{results_voting <-}\StringTok{ }\NormalTok{results_voting }\OperatorTok{%>%}\StringTok{  }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{pred_surface =} \KeywordTok{rep}\NormalTok{(}\StringTok{""}\NormalTok{, }\KeywordTok{nrow}\NormalTok{(results_voting)))}
+
+\CommentTok{# set the value on predicted surface to the surface that got maximum probability}
+\ControlFlowTok{for}\NormalTok{ (i }\ControlFlowTok{in} \DecValTok{1}\OperatorTok{:}\KeywordTok{nrow}\NormalTok{(results_voting)) \{}
+\NormalTok{        results_voting[i, }\StringTok{"pred_surface"}\NormalTok{] <-}\StringTok{ }\KeywordTok{names}\NormalTok{(}\KeywordTok{which.max}\NormalTok{(}\KeywordTok{select}\NormalTok{(results_voting[i,], }\OperatorTok{-}\NormalTok{series_id, }\OperatorTok{-}\NormalTok{true_surface, }\OperatorTok{-}\NormalTok{pred_surface)))}
+\NormalTok{\}}
+
+\NormalTok{results_voting <-}\StringTok{ }\NormalTok{results_voting }\OperatorTok{%>%}\StringTok{ }\KeywordTok{mutate}\NormalTok{(}\DataTypeTok{pred_surface =} \KeywordTok{as.factor}\NormalTok{(pred_surface))}
+
+
+\CommentTok{# compute confusion matrix and print it}
+\NormalTok{conf_matrix <-}\StringTok{ }\KeywordTok{confusionMatrix}\NormalTok{(results_voting}\OperatorTok{$}\NormalTok{pred_surface,}
+\NormalTok{                                                             results_voting}\OperatorTok{$}\NormalTok{true_surface)}
+
+\CommentTok{# display confusion matrix}
+\NormalTok{conf_matrix}\OperatorTok{$}\NormalTok{table }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}lrrrrrrrrr@{}}
+\toprule
+& carpet & concrete & fine\_concrete & hard\_tiles &
+hard\_tiles\_large\_space & soft\_pvc & soft\_tiles & tiled &
+wood\tabularnewline
+\midrule
+\endhead
+carpet & 46 & 3 & 2 & 0 & 2 & 1 & 0 & 2 & 3\tabularnewline
+concrete & 2 & 214 & 15 & 0 & 8 & 14 & 2 & 16 & 9\tabularnewline
+fine\_concrete & 0 & 5 & 57 & 0 & 0 & 7 & 0 & 2 & 8\tabularnewline
+hard\_tiles & 0 & 0 & 0 & 3 & 0 & 0 & 0 & 0 & 2\tabularnewline
+hard\_tiles\_large\_space & 1 & 4 & 1 & 0 & 86 & 0 & 0 & 0 &
+1\tabularnewline
+soft\_pvc & 2 & 13 & 12 & 0 & 2 & 203 & 7 & 0 & 12\tabularnewline
+soft\_tiles & 4 & 2 & 3 & 1 & 1 & 11 & 88 & 2 & 2\tabularnewline
+tiled & 2 & 8 & 11 & 0 & 4 & 3 & 0 & 143 & 9\tabularnewline
+wood & 6 & 10 & 20 & 3 & 0 & 5 & 2 & 6 & 156\tabularnewline
+\bottomrule
+\end{longtable}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{# create a data frame to store Accuracy results by model}
+\NormalTok{model_results <-}\StringTok{ }\KeywordTok{data.frame}\NormalTok{(}\DataTypeTok{Model =} \StringTok{"randomForest one-vs-one"}\NormalTok{, }\DataTypeTok{Accuracy =}\NormalTok{ conf_matrix}\OperatorTok{$}\NormalTok{overall[}\StringTok{"Accuracy"}\NormalTok{])}
+\NormalTok{model_results }\OperatorTok{%>%}\StringTok{ }\NormalTok{knitr}\OperatorTok{::}\KeywordTok{kable}\NormalTok{()}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{longtable}[]{@{}llr@{}}
+\toprule
+& Model & Accuracy\tabularnewline
+\midrule
+\endhead
+Accuracy & randomForest one-vs-one & 0.78487\tabularnewline
+\bottomrule
+\end{longtable}
+
+
+\end{document}
