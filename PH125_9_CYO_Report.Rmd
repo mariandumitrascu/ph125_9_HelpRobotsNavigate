@@ -1,7 +1,7 @@
 ---
-title: "Surface Detection by Robot Movements - Report"
+title: "Surface Detection by Robot Movements - Research Project"
 author: "Marian Dumitrascu"
-date: "March 31, 2019"
+date: "April 5, 2019"
 header-includes: #allows you to add in your own Latex packages
 - \usepackage{float} #use the 'float' package
 - \floatplacement{figure}{H} #make every figure with caption = h
@@ -23,7 +23,7 @@ For this project I choose a Kaggle.com open competition project. This is [*Caree
 > *In this competition, you’ll help robots recognize the floor surface they’re standing on using data collected from Inertial Measurement Units (IMU sensors).*
 > *We’ve collected IMU sensor data while driving a small mobile robot over different floor surfaces on the university premises. The task is to predict which one of the nine floor types (carpet, tiles, concrete) the  robot is on using sensor data such as acceleration and velocity. Succeed and you'll help improve the navigation of robots without assistance across many different surfaces, so they won’t fall down on the job.*
 
-The task is challenging, but I believe I can obtain a decent result using techniques and tools learned in this course.
+The task is challenging, but I believe I can obtain a decent result using techniques and tools learned in this seet of courses.
 Please note that some code chunks are not showing in the PDF for aesthetic reasons. You can find all code behind in the .Rmd version.
 
 ## Report Structure
