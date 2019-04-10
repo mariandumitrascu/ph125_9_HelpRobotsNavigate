@@ -17,7 +17,9 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # Introduction
 
-For this project I choose a Kaggle.com open competition project. This is [*CareerCon 2019 - Help Navigate Robots*](https://www.kaggle.com/c/career-con-2019). Here is the description of the project from Kaggle:
+This document is the final report for the Capstone project of *"HarvardX: PH125 Data Science - Professional Certification"*.
+
+For this *Choose Your Own* project I choose a Kaggle.com open competition challenge. This is [*CareerCon 2019 - Help Navigate Robots*](https://www.kaggle.com/c/career-con-2019). Here is the description from Kaggle:
 
 
 > *In this competition, you’ll help robots recognize the floor surface they’re standing on using data collected from Inertial Measurement Units (IMU sensors).*
